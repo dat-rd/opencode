@@ -1,0 +1,79 @@
+---
+title: "SSO"
+description: "Đăng nhập vào một không gian làm việc OpenCode Console qua nhà cung cấp danh tính của bạn bằng OIDC hoặc SAML."
+---
+
+Đăng nhập một lần (SSO) chuyển hướng thành viên không gian làm việc qua nhà cung cấp danh tính của công ty bạn khi họ đăng nhập. Chủ sở hữu và quản trị viên thiết lập tại **Cài đặt › Bảo mật**, và tính năng này có sẵn với mọi không gian làm việc.
+
+| Giao thức         | Nhà cung cấp                                                                            |
+| ----------------- | ----------------------------------------------------------------------------------------- |
+| OpenID Connect    | Google Không gian làm việc, Microsoft Entra ID, Okta, Auth0, Ping Identity, hoặc bất kỳ nhà cung cấp OIDC nào |
+| SAML 2.0          | Google Không gian làm việc, Microsoft Entra ID, Okta, hoặc bất kỳ nhà cung cấp SAML nào              |
+
+Mỗi không gian làm việc có một kết nối SSO.
+
+## Thiết lập OIDC
+
+1. Mở **Cài đặt › Bảo mật**, nhấp **Cấu hình SSO**, rồi chọn **OpenID Connect** và nhà cung cấp của bạn.
+2. Tạo một ứng dụng trong nhà cung cấp của bạn theo các bước được hiển thị, với các phạm vi `openid`, `email` và `profile`.
+3. Nhập **URL bên phát hành**, hoặc tenant hoặc miền của bạn, cùng với **Client ID**, **Client Secret** và một **Tên hiển thị**, rồi nhấp **Lưu**.
+4. Chép **URL gọi lại** từ kết nối vào danh sách URI chuyển hướng được phép của nhà cung cấp.
+
+```text
+https://opencode.ai/console/auth/sso/ssoconn_.../callback
+```
+
+Console kiểm tra rằng bên phát hành truy cập được khi bạn lưu. SSO có hiệu lực ngay khi kết nối được lưu.
+
+## Thiết lập SAML
+
+1. Mở **Cài đặt › Bảo mật**, nhấp **Cấu hình SSO**, rồi chọn **SAML 2.0** và nhà cung cấp của bạn.
+2. Chép **ACS URL** và **SP Entity ID** vào nhà cung cấp của bạn. Nhà cung cấp tùy chỉnh có thể dùng **SP Metadata URL** hoặc tải tệp XML xuống thay thế.
+3. Thêm siêu dữ liệu của nhà cung cấp bằng URL, tải tệp XML lên hoặc dán trực tiếp. Bạn cũng có thể tự nhập **IdP Entity ID**, **IdP SSO
+   URL** và **IdP Certificate**.
+4. Xem lại các chi tiết và nhấp **Kích hoạt SSO**.
+
+```text
+ACS URL:       https://opencode.ai/console/auth/sso/ssoconn_.../callback
+SP Entity ID:  https://opencode.ai/console/auth/sso/ssoconn_.../metadata
+```
+
+Nhà cung cấp của bạn phải ký phản hồi hoặc assertion, và gửi email của người dùng dưới dạng thuộc tính `email` hoặc dưới dạng NameID.
+
+## Xác minh miền email
+
+Những người đăng nhập vào [Console](https://opencode.ai/console) bằng email thuộc miền đã xác minh sẽ được chuyển đến nhà cung cấp danh tính của bạn. Khi SSO đã có hiệu lực, nhấp **Thêm miền** dưới mục **Miền email**, nhập miền của bạn và xuất bản bản ghi TXT được hiển thị.
+
+```text
+Name:   _opencode-console-challenge.example.com
+Type:   TXT
+Value:  oc-verify=...
+```
+
+Nhấp **Xác minh miền** sau khi bản ghi đã được xuất bản. Thay đổi DNS có thể mất một khoảng thời gian để lan tỏa. Mỗi miền chỉ có thể thuộc về một không gian làm việc.
+
+## Bắt buộc dùng SSO
+
+Khi một không gian làm việc đã có SSO, quản trị viên và thành viên phải đăng nhập qua đó để mở không gian làm việc, và Console sẽ tự động chuyển hướng họ. Việc kết nối OpenCode bằng `/connect` tuân theo cùng quy tắc đó.
+
+Chủ sở hữu cũng có thể đăng nhập mà không cần SSO, nên một nhà cung cấp bị cấu hình sai không thể khóa không gian làm việc khỏi phần cài đặt của nó.
+
+## Tự động thêm thành viên
+
+Những người thuộc một miền đã xác minh sẽ tham gia không gian làm việc với vai trò **Thành viên** trong lần đăng nhập đầu tiên qua SSO. Họ sẽ không được tự động thêm vào khi:
+
+- Họ có một lời mời đang chờ. Lời mời sẽ được dùng thay thế.
+- Không gian làm việc dùng [đồng bộ thư mục](/console/scim), vốn quyết định thành viên.
+- Không gian làm việc có gói đăng ký [Go](/console/go).
+
+Lời mời đến một không gian làm việc có SSO sẽ chuyển người được mời đến nhà cung cấp danh tính của bạn khi họ mở liên kết.
+
+## Tài khoản đã tồn tại
+
+Nếu một người đã có tài khoản Console với cùng email đó, Console sẽ yêu cầu họ đăng nhập một lần để liên kết SSO. Những người được mời và những người được thêm bởi đồng bộ thư mục sẽ được liên kết tự động.
+
+## Sửa hoặc xóa
+
+Nhấp **Sửa** trên kết nối để thay đổi chi tiết của nó. Để trống secret hoặc chứng thư để giữ nguyên giá trị hiện tại. Để chuyển qua lại giữa OIDC và SAML, hãy xóa kết nối rồi tạo một kết nối mới.
+
+Xóa kết nối tại **⋯ › Xóa...**. Các thành viên sẽ trở lại dùng các phương thức đăng nhập khác của họ, và đồng bộ thư mục dừng lại với các token bị thu hồi. Các miền email được giữ nguyên.

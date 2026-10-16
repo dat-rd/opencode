@@ -1,0 +1,142 @@
+---
+title: "Ảnh chụp"
+---
+
+Ảnh chụp cho phép bạn hoàn tác cùng lúc thay đổi hội thoại gần đây và thay đổi tệp. Hãy
+dùng chúng để chỉnh sửa công việc gần đây, nhưng vẫn giữ các commit Git hoặc bản sao lưu cho
+mọi thứ quan trọng.
+
+## Quy trình
+
+Chạy `/undo` sau một câu trả lời mà bạn muốn chỉnh sửa. OpenCode chuẩn bị thao tác hoàn
+tác, khôi phục các tệp bị ảnh hưởng và đặt lại lời nhắc đã bị gỡ vào composer để bạn
+chỉnh sửa.
+
+```text
+/undo
+
+# Edit the restored prompt, then submit it again.
+Add validation without changing the public API.
+```
+
+Gửi lời nhắc đã chỉnh sửu sẽ commit thao tác hoàn tác đã chuẩn bị. Trước khi gửi, hãy
+chạy `/redo` để hủy nó và khôi phục lại hội thoại cùng các tệp bạn có trước `/undo`.
+
+```text
+/redo
+```
+
+Terminal cũng cung cấp các phím tắt mặc định:
+
+| Hành động | Lệnh | Phím tắt |
+| --- | --- | --- |
+| Chuẩn bị hoàn tác tin nhắn trước | `/undo` | `<leader>u` |
+| Hủy thao tác hoàn tác đã chuẩn bị | `/redo` | `<leader>r` |
+
+Bạn cũng có thể chọn một tin nhắn trước đó và chọn **Revert** để chuẩn bị một thao tác hoàn
+tác về điểm đó.
+
+## Ghi lại
+
+Với mỗi bước mô hình, OpenCode thử chụp một ảnh ngay trước lệnh gọi mô hình và một ảnh
+khác khi bước đó đạt tới một kết quả thành công hoặc thất bại đã được ghi nhận. Tin nhắn
+trợ lý ghi lại những đường dẫn nào đã thay đổi giữa hai ảnh đó.
+
+```text
+before model step ── snapshot A
+model edits src/api.ts
+step finishes ────── snapshot B ── changed: src/api.ts
+```
+
+Việc ghi lại là nỗ lực tối đa. Nếu một trong hai ảnh không khả dụng, hội thoại vẫn tiếp
+tục, nhưng bước đó có thể không có thay đổi tệp nào để khôi phục.
+
+## Phạm vi
+
+Ảnh chụp bao phủ thư mục đang hoạt động của phiên bên trong một worktree Git. Ví dụ, một
+phiên được mở trong `packages/app` sẽ chụp các tệp đủ điều kiện bên dưới `packages/app`,
+không phải các thay đổi ở nơi khác trong kho lưu trữ.
+
+| Nội dung | Được chụp | Ví dụ |
+| --- | --- | --- |
+| Tệp được theo dõi trong thư mục đang hoạt động | Có | `packages/app/src/app.tsx` |
+| Tệp chưa theo dõi, không bị bỏ qua, mỗi tệp tối đa 2 MiB | Có | `packages/app/notes.txt` |
+| Tệp bị Git bỏ qua | Không | `packages/app/dist/app.js` |
+| Tệp chưa theo dõi đơn lẻ lớn hơn 2 MiB | Không | `packages/app/debug.log` |
+| Tệp ngoài thư mục đang hoạt động | Không | `packages/server/src/index.ts` |
+| Dữ liệu Git và các tác dụng phụ khác | Không | commit, nhánh, cơ sở dữ liệu hoặc tiến trình |
+
+Ảnh chụp hệ thống tệp cần một kho lưu trữ Git. Ngoài kho lưu trữ đó, `/undo` vẫn có thể
+hoàn tác lịch sử hội thoại, nhưng không thể khôi phục tệp.
+
+## Khôi phục
+
+Một thao tác hoàn tác chỉ khôi phục các đường dẫn được quy cho các bước trợ lý sau mốc hội
+thoại đã chọn. Mỗi đường dẫn trở về trạng thái của nó trước bước bị hoàn tác đầu tiên; một
+tệp được tạo bởi những bước đó sẽ bị xóa nếu nó chưa tồn tại vào thời điểm đó.
+
+| Dòng thời gian | `src/api.ts` | `src/new.ts` |
+| --- | --- | --- |
+| Mốc đã chọn | phiên bản A | không có |
+| Các bước trợ lý về sau | phiên bản B | đã tạo |
+| Sau khi hoàn tác | phiên bản A | đã bị xóa |
+
+Các đường dẫn không được quy cho những bước đó sẽ được giữ nguyên. Các chỉnh sửa hiện tại
+lên một đường dẫn bị ảnh hưởng có thể bị ghi đè, vì vậy hãy xem lại bản tóm tắt đã khôi
+phục và `git diff` trước khi tiếp tục.
+
+```sh
+git diff --stat
+git diff
+```
+
+## Lưu trữ
+
+OpenCode lưu ảnh chụp cục bộ trong một cơ sở dữ liệu đối tượng Git nội bộ riêng biệt nằm
+trong thư mục dữ liệu của nó. Việc ghi lại ảnh chụp không tạo commit, không di chuyển
+nhánh, và không cố ý thay đổi index của kho lưu trữ của bạn.
+
+```sh
+# Your repository remains an ordinary dirty worktree after capture.
+git status --short
+```
+
+Các đối tượng ảnh chụp có thể chứa toàn bộ nội dung của các tệp được theo dõi và các tệp
+chưa theo dõi đủ điều kiện. Hãy coi thư mục dữ liệu của OpenCode là dữ liệu cục bộ nhạy
+cảm.
+
+## Cài đặt
+
+Ảnh chụp được bật theo mặc định. Hãy đặt `snapshots` thành `false` trong
+[cấu hình](/config#snapshots) của bạn để ngừng ghi lại hệ thống tệp về sau.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "snapshots": false,
+}
+```
+
+Việc tắt ảnh chụp không xóa các ảnh đã lưu. Hoàn tác hội thoại vẫn khả dụng, nhưng không
+có trạng thái hệ thống tệp đã ghi lại thì nó không thể khôi phục các thay đổi tệp liên
+quan.
+
+## An toàn
+
+Ảnh chụp là một tiện ích, không phải giao dịch hay bản sao lưu:
+
+- Lệnh shell có thể thay đổi dịch vụ, tiến trình, tài nguyên mạng, cơ sở dữ liệu, trạng
+  thái Git, kết quả bị bỏ qua hoặc các tệp ngoài thư mục đang hoạt động. Khôi phục một ảnh
+  chụp không hoàn tác những tác dụng đó.
+- Công việc bị gián đoạn hoặc thất bại có thể để lại thay đổi khi việc ghi lại thất bại
+  hoặc không tồn tại cặp ảnh chụp dùng được.
+- Việc khôi phục các đường dẫn bị ảnh hưởng sẽ ghi đè nội dung hiện tại của chúng. Hủy một
+  thao tác hoàn tác đã chuẩn bị cũng có thể ghi đè các chỉnh sửa về sau.
+- OpenCode từ chối các thao tác hoàn tác khi phiên đang chạy, nhưng các trình chỉnh sửa
+  và lệnh bên ngoài vẫn có thể thay đổi worktree giữa lúc ghi lại và khôi phục.
+- Việc commit một thao tác hoàn tác chỉ loại các tin nhắn khỏi chế độ xem hội thoại đang
+  hoạt động, chứ không loại khỏi lịch sử phiần bền vững hay kho lưu trữ ảnh chụp hiện có.
+  Đây không phải là xóa an toàn.
+
+Hãy commit hoặc sao lưu công việc quan trọng trước khi dùng `/undo` trên một worktree
+bẩn.

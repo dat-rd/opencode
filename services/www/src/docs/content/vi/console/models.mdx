@@ -1,0 +1,427 @@
+---
+title: "Mô hình"
+description: "Các mô hình lập trình mã được chọn lọc, giá trả theo mức dùng và quyền truy cập API qua OpenCode Console."
+---
+
+OpenCode Console cung cấp danh sách các mô hình đã được đội ngũ OpenCode kiểm thử và xác minh. Hãy đăng nhập, thêm tín dụng
+và nhận API key để dùng chúng với OpenCode hoặc một tác nhân lập trình mã khác.
+
+Console hoạt động giống như mọi nhà cung cấp khác trong OpenCode. Đây là **hoàn toàn tùy chọn**, và bạn có thể dùng một
+nhà cung cấp khác thay thế. Để biết gói đăng ký có mức sử dụng bao gồm, xem [OpenCode Go](/console/go).
+
+## Cách hoạt động
+
+1. Đăng nhập vào [console](https://opencode.ai/console), thêm thông tin thanh toán và tín dụng, rồi sao chép API key của bạn.
+2. Chạy `/connect` trong TUI, chọn nhà cung cấp trả theo mức dùng của OpenCode và dán API key của bạn.
+
+   ```text
+   /connect
+   ```
+
+3. Chạy `/models` để xem các mô hình khả dụng và chọn một mô hình.
+
+   ```text
+   /models
+   ```
+
+Bạn bị tính phí theo từng request và có thể thêm tín dụng vào tài khoản của mình.
+
+## Endpoint
+
+Bạn cũng có thể truy cập trực tiếp các mô hình qua các API endpoint sau.
+
+<div class="docs-table-scroll" role="region" aria-label="Các endpoint mô hình Console" tabIndex={0}>
+
+| Mô hình                           | ID mô hình                    | Endpoint                                                                   | Gói AI SDK              |
+| ------------------------------- | ----------------------------- | -------------------------------------------------------------------------- | --------------------------- |
+| GPT 6 Astra                     | gpt-6-astra                   | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 6 Sol                       | gpt-6-sol                     | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 6.1 Sol                     | gpt-6.1-sol                   | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 6 Luna                      | gpt-6-luna                    | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5.6 Sol                     | gpt-5.6-sol                   | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5.6 Terra                   | gpt-5.6-terra                 | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5.6 Luna                    | gpt-5.6-luna                  | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5.5                         | gpt-5.5                       | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5.5 Pro                     | gpt-5.5-pro                   | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5.4                         | gpt-5.4                       | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5.4 Pro                     | gpt-5.4-pro                   | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5.4 Mini                    | gpt-5.4-mini                  | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5.4 Nano                    | gpt-5.4-nano                  | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5.3 Codex                   | gpt-5.3-codex                 | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5.3 Codex Spark             | gpt-5.3-codex-spark           | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5.2                         | gpt-5.2                       | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5.2 Codex                   | gpt-5.2-codex                 | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5.1                         | gpt-5.1                       | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5.1 Codex                   | gpt-5.1-codex                 | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5.1 Codex Max               | gpt-5.1-codex-max             | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5.1 Codex Mini              | gpt-5.1-codex-mini            | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5                           | gpt-5                         | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5 Codex                     | gpt-5-codex                   | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| GPT 5 Nano                      | gpt-5-nano                    | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| Claude Fable 5.1                | claude-fable-5-1              | `https://opencode.ai/inference/anthropic/v1/messages`                      | `@ai-sdk/anthropic`         |
+| Claude Fable 5                  | claude-fable-5                | `https://opencode.ai/inference/anthropic/v1/messages`                      | `@ai-sdk/anthropic`         |
+| Claude Opus 5.5                 | claude-opus-5-5               | `https://opencode.ai/inference/anthropic/v1/messages`                      | `@ai-sdk/anthropic`         |
+| Claude Opus 5                   | claude-opus-5                 | `https://opencode.ai/inference/anthropic/v1/messages`                      | `@ai-sdk/anthropic`         |
+| Claude Opus 4.8                 | claude-opus-4-8               | `https://opencode.ai/inference/anthropic/v1/messages`                      | `@ai-sdk/anthropic`         |
+| Claude Opus 4.7                 | claude-opus-4-7               | `https://opencode.ai/inference/anthropic/v1/messages`                      | `@ai-sdk/anthropic`         |
+| Claude Opus 4.6                 | claude-opus-4-6               | `https://opencode.ai/inference/anthropic/v1/messages`                      | `@ai-sdk/anthropic`         |
+| Claude Opus 4.5                 | claude-opus-4-5               | `https://opencode.ai/inference/anthropic/v1/messages`                      | `@ai-sdk/anthropic`         |
+| Claude Sonnet 5.5               | claude-sonnet-5-5             | `https://opencode.ai/inference/anthropic/v1/messages`                      | `@ai-sdk/anthropic`         |
+| Claude Sonnet 5                 | claude-sonnet-5               | `https://opencode.ai/inference/anthropic/v1/messages`                      | `@ai-sdk/anthropic`         |
+| Claude Sonnet 4.6               | claude-sonnet-4-6             | `https://opencode.ai/inference/anthropic/v1/messages`                      | `@ai-sdk/anthropic`         |
+| Claude Sonnet 4.5               | claude-sonnet-4-5             | `https://opencode.ai/inference/anthropic/v1/messages`                      | `@ai-sdk/anthropic`         |
+| Claude Haiku 5.5                | claude-haiku-5-5              | `https://opencode.ai/inference/anthropic/v1/messages`                      | `@ai-sdk/anthropic`         |
+| Claude Haiku 4.5                | claude-haiku-4-5              | `https://opencode.ai/inference/anthropic/v1/messages`                      | `@ai-sdk/anthropic`         |
+| Gemini 4 Argon                  | gemini-4-argon                | `https://opencode.ai/inference/google/v1beta/models/gemini-4-argon`        | `@ai-sdk/google`            |
+| Gemini 3.8 Flash                | gemini-3.8-flash              | `https://opencode.ai/inference/google/v1beta/models/gemini-3.8-flash`      | `@ai-sdk/google`            |
+| Gemini 3.7 Flash                | gemini-3.7-flash              | `https://opencode.ai/inference/google/v1beta/models/gemini-3.7-flash`      | `@ai-sdk/google`            |
+| Gemini 3.6 Flash                | gemini-3.6-flash              | `https://opencode.ai/inference/google/v1beta/models/gemini-3.6-flash`      | `@ai-sdk/google`            |
+| Gemini 3.5 Flash                | gemini-3.5-flash              | `https://opencode.ai/inference/google/v1beta/models/gemini-3.5-flash`      | `@ai-sdk/google`            |
+| Gemini 3.5 Flash Lite           | gemini-3.5-flash-lite         | `https://opencode.ai/inference/google/v1beta/models/gemini-3.5-flash-lite` | `@ai-sdk/google`            |
+| Gemini 3.1 Pro                  | gemini-3.1-pro                | `https://opencode.ai/inference/google/v1beta/models/gemini-3.1-pro`        | `@ai-sdk/google`            |
+| Gemini 3 Flash                  | gemini-3-flash                | `https://opencode.ai/inference/google/v1beta/models/gemini-3-flash`        | `@ai-sdk/google`            |
+| Grok 4.7                        | grok-4.7                      | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| Grok 4.6                        | grok-4.6                      | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| Grok 4.5                        | grok-4.5                      | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| Grok Build 0.1                  | grok-build-0.1                | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| Muse Spark 1.3                  | muse-spark-1.3                | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| Muse Spark 1.2                  | muse-spark-1.2                | `https://opencode.ai/inference/openai/v1/responses`                        | `@ai-sdk/openai`            |
+| Qwen3.8 Max                     | qwen3.8-max                   | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| Qwen3.8 Flash                   | qwen3.8-flash                 | `https://opencode.ai/inference/anthropic/v1/messages`                      | `@ai-sdk/anthropic`         |
+| Qwen3.7 Max                     | qwen3.7-max                   | `https://opencode.ai/inference/anthropic/v1/messages`                      | `@ai-sdk/anthropic`         |
+| Qwen3.7 Plus                    | qwen3.7-plus                  | `https://opencode.ai/inference/anthropic/v1/messages`                      | `@ai-sdk/anthropic`         |
+| Qwen3.6 Plus                    | qwen3.6-plus                  | `https://opencode.ai/inference/anthropic/v1/messages`                      | `@ai-sdk/anthropic`         |
+| Qwen3.5 Plus                    | qwen3.5-plus                  | `https://opencode.ai/inference/anthropic/v1/messages`                      | `@ai-sdk/anthropic`         |
+| DeepSeek V4.1 Flash             | deepseek-v4.1-flash           | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| DeepSeek V4 Pro                 | deepseek-v4-pro               | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| MiniMax M3                      | minimax-m3                    | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| MiniMax M2.7                    | minimax-m2.7                  | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| MiniMax M2.5                    | minimax-m2.5                  | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| GLM 5.3 Flash                   | glm-5.3-flash                 | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| GLM 5.3                         | glm-5.3                       | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| GLM 5.2                         | glm-5.2                       | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| GLM 5.1                         | glm-5.1                       | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| GLM 5                           | glm-5                         | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| Kimi K2.5                       | kimi-k2.5                     | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| Kimi K2.6                       | kimi-k2.6                     | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| Kimi K2.7 Code                  | kimi-k2.7-code                | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| Kimi K3                         | kimi-k3                       | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| Mistral Large 4                 | mistral-large-4               | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| Jev 1.13                        | jev-1.13                      | `https://opencode.ai/inference/systemone/v1/systemone`                     | -                           |
+| Jev 1.13 Free                   | jev-1.13-free                 | `https://opencode.ai/inference/systemone/v1/systemone`                     | -                           |
+| Big Pickle                      | big-pickle                    | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| DeepSeek V4.1 Flash Free        | deepseek-v4.1-flash-free      | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| Space Bunny Free                | space-bunny-free              | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| Cat Jam Free                    | cat-jam-free                  | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| LongCat 2.5 Preview Free        | longcat-2.5-preview-free      | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| Exo Free                        | exo-free                      | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| MiMo-V2.6-Flash Free            | mimo-v2.6-flash-free          | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| MiMo-V2.5 Free                  | mimo-v2.5-free                | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| Nemotron 3 Ultra Free           | nemotron-3-ultra-free         | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| Nemotron 3.5 Lightning Free     | nemotron-3.5-lightning-free   | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| Nemotron 3.5 Super VL Free      | nemotron-3.5-super-vl-free    | `https://opencode.ai/inference/openai/v1/chat/completions`                 | `@ai-sdk/openai-compatible` |
+| Muse Spark 1.3 Contributor Free | muse-spark-1.3-contributor-free | `https://opencode.ai/inference/openai/v1/responses`                     | `@ai-sdk/openai`            |
+
+</div>
+
+Các gói AI SDK này dành cho các ứng dụng gọi trực tiếp các endpoint này. Để chọn một [mô hình](/models) trong OpenCode, hãy
+dùng định dạng `opencode/<model-id>`:
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "opencode/gpt-5.5",
+}
+```
+
+### Danh sách mô hình
+
+Lấy danh sách đầy đủ các mô hình khả dụng và metadata của chúng từ endpoint mô hình:
+
+```bash
+curl https://opencode.ai/inference/v1/models
+```
+
+### Jev
+
+Jev là một mô hình System One của TypeSafe AI dành cho các quyết định nhanh và có cấu trúc. Thay vì tạo văn bản, nó đánh
+giá một `state` theo các câu hỏi có kiểu và trả về giá trị cùng xác suất mà mã của bạn có thể dùng trực tiếp. Nó hỗ trợ
+câu hỏi có/không (`noul`), chọn một (`choice`) và chấm điểm theo tiêu chí (`score`).
+
+Hãy dùng OpenCode Console API key của bạn với endpoint
+`https://opencode.ai/inference/systemone/v1/systemone`. Ví dụ này kiểm tra xem một yêu cầu hỗ trợ có khẩn cấp hay
+không:
+
+```bash
+curl https://opencode.ai/inference/systemone/v1/systemone \
+  -H "Authorization: Bearer $OPENCODE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "jev-1.13",
+    "state": "My payments have failed for three days and I am losing sales. Please help now.",
+    "questions": {
+      "is_urgent": {
+        "type": "noul",
+        "instructions": "Does this request require urgent attention?"
+      }
+    }
+  }'
+```
+
+Bạn có thể đặt nhiều câu hỏi trong một request. Jev đánh giá chúng song song và trả về từng câu trả lời dưới ID câu
+hỏi tương ứng:
+
+```bash
+curl https://opencode.ai/inference/systemone/v1/systemone \
+  -H "Authorization: Bearer $OPENCODE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "jev-1.13",
+    "state": "My order arrived late and the item is damaged. I want a refund.",
+    "questions": {
+      "department": {
+        "type": "choice",
+        "instructions": "Which team should handle this request?",
+        "criteria": {
+          "returns": "Refunds, exchanges, or damaged items",
+          "shipping": "Delivery delays or lost packages",
+          "billing": "Charges, invoices, or payment problems"
+        }
+      },
+      "frustration": {
+        "type": "score",
+        "instructions": "How frustrated is the customer?",
+        "criteria": ["Calm", "Frustrated", "Very angry"]
+      }
+    }
+  }'
+```
+
+Hãy dùng `jev-1.13-free` thay cho `jev-1.13` để dùng mô hình miễn phí có thời hạn. Xem [tài liệu TypeSafe
+AI](https://docs.typesafe.ai/) để biết chi tiết về các loại câu hỏi và trường phản hồi.
+
+## Bảng giá
+
+Console dùng bảng giá trả theo mức dùng. Dưới đây là giá **trên mỗi 1M token**.
+
+<div class="docs-table-scroll" role="region" aria-label="Bảng giá mô hình Console" tabIndex={0}>
+
+| Mô hình                             | Đầu vào | Đầu ra  | Đọc từ bộ nhớ đệm | Ghi vào bộ nhớ đệm |
+| --------------------------------- | ------- | ------- | ----------------- | ------------------- |
+| Big Pickle                        | Miễn phí | Miễn phí | Miễn phí       | -                   |
+| DeepSeek V4.1 Flash Free          | Miễn phí | Miễn phí | Miễn phí       | -                   |
+| Space Bunny Free                  | Miễn phí | Miễn phí | Miễn phí       | -                   |
+| Cat Jam Free                      | Miễn phí | Miễn phí | Miễn phí       | -                   |
+| LongCat 2.5 Preview Free          | Miễn phí | Miễn phí | Miễn phí       | -                   |
+| Exo Free                          | Miễn phí | Miễn phí | Miễn phí       | -                   |
+| MiMo-V2.6-Flash Free              | Miễn phí | Miễn phí | Miễn phí       | -                   |
+| MiMo-V2.5 Free                    | Miễn phí | Miễn phí | Miễn phí       | -                   |
+| Nemotron 3 Ultra Free             | Miễn phí | Miễn phí | Miễn phí       | -                   |
+| Nemotron 3.5 Lightning Free       | Miễn phí | Miễn phí | Miễn phí       | -                   |
+| Nemotron 3.5 Super VL Free        | Miễn phí | Miễn phí | Miễn phí       | -                   |
+| Muse Spark 1.3 Contributor Free   | Miễn phí | Miễn phí | Miễn phí       | -                   |
+| Jev 1.13 Free                     | Miễn phí | Miễn phí | -               | -                   |
+| Jev 1.13                          | $0.042  | Miễn phí | -               | -                   |
+| MiniMax M3                        | $0.30   | $1.20   | $0.06           | -                   |
+| MiniMax M2.7                      | $0.30   | $1.20   | $0.06           | -                   |
+| MiniMax M2.5                      | $0.30   | $1.20   | $0.06           | -                   |
+| GLM 5.3 Flash                     | $0.15   | $0.50   | $0.03           | -                   |
+| GLM 5.3                           | $1.40   | $4.40   | $0.26           | -                   |
+| GLM 5.2                           | $1.40   | $4.40   | $0.26           | -                   |
+| GLM 5.1                           | $1.40   | $4.40   | $0.26           | -                   |
+| GLM 5                             | $1.00   | $3.20   | $0.20           | -                   |
+| Kimi K2.7 Code                    | $0.95   | $4.00   | $0.19           | -                   |
+| Kimi K3                           | $3.00   | $15.00  | $0.30           | -                   |
+| Kimi K2.6                         | $0.95   | $4.00   | $0.16           | -                   |
+| Kimi K2.5                         | $0.60   | $3.00   | $0.10           | -                   |
+| Mistral Large 4 (giảm 50%)        | ~~$1.36~~ $0.68 | ~~$4.18~~ $2.09 | ~~$0.14~~ $0.07 | -          |
+| Qwen3.8 Max                       | $2.00   | $6.00   | $0.25           | $2.50               |
+| Qwen3.8 Flash                     | $0.15   | $0.47   | $0.016          | $0.20               |
+| Qwen3.7 Max                       | $2.50   | $7.50   | $0.50           | $3.125              |
+| Qwen3.7 Plus                      | $0.40   | $1.60   | $0.04           | $0.50               |
+| Qwen3.6 Plus                      | $0.50   | $3.00   | $0.05           | $0.625              |
+| Qwen3.5 Plus                      | $0.20   | $1.20   | $0.02           | $0.25               |
+| DeepSeek V4.1 Flash               | $0.30   | $1.20   | $0.006          | -                   |
+| DeepSeek V4 Pro                   | $1.74   | $3.48   | $0.145          | -                   |
+| Claude Fable 5.1                  | $10.00  | $50.00  | $0.25           | $12.50              |
+| Claude Fable 5                    | $10.00  | $50.00  | $1.00           | $12.50              |
+| Claude Opus 5.5                   | $4.00   | $20.00  | $0.20           | $5.00               |
+| Claude Opus 5                     | $5.00   | $25.00  | $0.50           | $6.25               |
+| Claude Opus 4.8                   | $5.00   | $25.00  | $0.50           | $6.25               |
+| Claude Opus 4.7                   | $5.00   | $25.00  | $0.50           | $6.25               |
+| Claude Opus 4.6                   | $5.00   | $25.00  | $0.50           | $6.25               |
+| Claude Opus 4.5                   | $5.00   | $25.00  | $0.50           | $6.25               |
+| Claude Sonnet 5.5                 | $2.00   | $10.00  | $0.20           | $2.50               |
+| Claude Sonnet 5                   | $2.00   | $10.00  | $0.20           | $2.50               |
+| Claude Sonnet 4.6                 | $3.00   | $15.00  | $0.30           | $3.75               |
+| Claude Sonnet 4.5 (≤ 200K token)   | $3.00   | $15.00  | $0.30           | $3.75               |
+| Claude Sonnet 4.5 (> 200K token)   | $6.00   | $22.50  | $0.60           | $7.50               |
+| Claude Haiku 5.5 (≤ 100K token)    | $0.10   | $0.50   | $0.01           | $0.125              |
+| Claude Haiku 5.5 (> 100K token)    | $0.50   | $2.50   | $0.05           | $0.625              |
+| Claude Haiku 4.5                  | $1.00   | $5.00   | $0.10           | $1.25               |
+| Gemini 4 Argon (giảm 50%)          | ~~$4.00~~ $2.00 | ~~$20.00~~ $10.00 | ~~$0.20~~ $0.10 | -          |
+| Gemini 3.8 Flash                  | $1.50   | $7.50   | $0.15           | -                   |
+| Gemini 3.7 Flash                  | $1.50   | $7.50   | $0.15           | -                   |
+| Gemini 3.6 Flash                  | $1.50   | $7.50   | $0.15           | -                   |
+| Gemini 3.5 Flash                  | $1.50   | $9.00   | $0.15           | -                   |
+| Gemini 3.5 Flash Lite             | $0.30   | $2.50   | $0.03           | -                   |
+| Gemini 3.1 Pro (≤ 200K token)      | $2.00   | $12.00  | $0.20           | -                   |
+| Gemini 3.1 Pro (> 200K token)      | $4.00   | $18.00  | $0.40           | -                   |
+| Gemini 3 Flash                    | $0.50   | $3.00   | $0.05           | -                   |
+| Grok 4.7 (≤ 200K token)            | $2.00   | $6.00   | $0.50           | -                   |
+| Grok 4.7 (> 200K token)            | $4.00   | $12.00  | $1.00           | -                   |
+| Grok 4.6 (≤ 200K token)            | $2.00   | $6.00   | $0.50           | -                   |
+| Grok 4.6 (> 200K token)            | $4.00   | $12.00  | $1.00           | -                   |
+| Grok 4.5 (≤ 200K token)            | $2.00   | $6.00   | $0.30           | -                   |
+| Grok 4.5 (> 200K token)            | $4.00   | $12.00  | $0.60           | -                   |
+| Grok Build 0.1                    | $1.00   | $2.00   | $0.20           | -                   |
+| Muse Spark 1.3                    | $1.25   | $4.25   | $0.15           | -                   |
+| Muse Spark 1.2                    | $1.25   | $4.25   | $0.15           | -                   |
+| GPT 6 Astra (≤ 272K token)         | $10.00  | $50.00  | $1.00           | $12.50              |
+| GPT 6 Astra (> 272K token)         | $20.00  | $75.00  | $2.00           | $25.00              |
+| GPT 6 Sol (≤ 272K token)           | $2.00   | $10.00  | $0.20           | $2.50               |
+| GPT 6 Sol (> 272K token)           | $4.00   | $15.00  | $0.40           | $5.00               |
+| GPT 6.1 Sol (≤ 272K token)         | $2.00   | $10.00  | $0.20           | $2.50               |
+| GPT 6.1 Sol (> 272K token)         | $4.00   | $15.00  | $0.40           | $5.00               |
+| GPT 6 Luna (≤ 272K token)          | $0.10   | $0.50   | $0.01           | $0.125              |
+| GPT 6 Luna (> 272K token)          | $0.20   | $0.75   | $0.02           | $0.25               |
+| GPT 5.6 Sol (≤ 272K token)         | $4.00   | $20.00  | $0.40           | $5.00               |
+| GPT 5.6 Sol (> 272K token)         | $8.00   | $30.00  | $0.80           | $10.00              |
+| GPT 5.6 Terra (≤ 272K token)       | $2.00   | $12.00  | $0.20           | $2.50               |
+| GPT 5.6 Terra (> 272K token)       | $4.00   | $18.00  | $0.40           | $5.00               |
+| GPT 5.6 Luna (≤ 272K token)        | $0.20   | $1.20   | $0.02           | $0.25               |
+| GPT 5.6 Luna (> 272K token)        | $0.40   | $1.80   | $0.04           | $0.50               |
+| GPT 5.5 (≤ 272K token)             | $5.00   | $30.00  | $0.50           | -                   |
+| GPT 5.5 (> 272K token)             | $10.00  | $45.00  | $1.00           | -                   |
+| GPT 5.5 Pro                       | $30.00  | $180.00 | $30.00          | -                   |
+| GPT 5.4 (≤ 272K token)             | $2.50   | $15.00  | $0.25           | -                   |
+| GPT 5.4 (> 272K token)             | $5.00   | $22.50  | $0.50           | -                   |
+| GPT 5.4 Pro                       | $30.00  | $180.00 | $30.00          | -                   |
+| GPT 5.4 Mini                      | $0.75   | $4.50   | $0.075          | -                   |
+| GPT 5.4 Nano                      | $0.20   | $1.25   | $0.02           | -                   |
+| GPT 5.3 Codex Spark               | $1.75   | $14.00  | $0.175          | -                   |
+| GPT 5.3 Codex                     | $1.75   | $14.00  | $0.175          | -                   |
+| GPT 5.2                           | $1.75   | $14.00  | $0.175          | -                   |
+| GPT 5.2 Codex                     | $1.75   | $14.00  | $0.175          | -                   |
+| GPT 5.1                           | $1.07   | $8.50   | $0.107          | -                   |
+| GPT 5.1 Codex                     | $1.07   | $8.50   | $0.107          | -                   |
+| GPT 5.1 Codex Max                 | $1.25   | $10.00  | $0.125          | -                   |
+| GPT 5.1 Codex Mini                | $0.25   | $2.00   | $0.025          | -                   |
+| GPT 5                             | $1.07   | $8.50   | $0.107          | -                   |
+| GPT 5 Codex                       | $1.07   | $8.50   | $0.107          | -                   |
+| GPT 5 Nano                        | $0.05   | $0.40   | $0.005          | -                   |
+
+</div>
+
+**Gemini 4 Argon:** Mức giảm 50% áp dụng đến ngày 30 tháng 11, 2026.
+
+Bạn có thể thấy [các mô hình chi phí thấp](/models), như Haiku, Nano hoặc Flash, trong lịch sử sử dụng của mình. OpenCode
+dùng các mô hình này để tạo tiêu đề phiên.
+
+<Callout>
+  Phí thẻ tín dụng được chuyển tiếp đúng chi phí (4.4% + $0.30 mỗi giao dịch); chúng tôi không thu thêm khoản nào ngoài đó.
+</Callout>
+
+### Mô hình miễn phí
+
+- DeepSeek V4.1 Flash Free miễn phí trên OpenCode trong thời gian có thời hạn. Nhà cung cấp của nó tuân thủ chính sách lưu trữ bằng không và không dùng dữ liệu của bạn để huấn luyện mô hình.
+- Exo Free khả dụng trên OpenCode trong thời gian có thời hạn. Đội ngũ đang dùng khoảng thời gian này để thu thập phản hồi và cải thiện mô hình.
+- MiMo-V2.6-Flash Free khả dụng trên OpenCode trong thời gian có thời hạn. Đội ngũ đang dùng khoảng thời gian này để thu thập phản hồi và cải thiện mô hình.
+- MiMo-V2.5 Free khả dụng trên OpenCode trong thời gian có thời hạn. Đội ngũ đang dùng khoảng thời gian này để thu thập phản hồi và cải thiện mô hình.
+- Nemotron 3 Ultra Free khả dụng trên OpenCode trong thời gian có thời hạn. Đội ngũ đang dùng khoảng thời gian này để thu thập phản hồi và cải thiện mô hình.
+- Nemotron 3.5 Lightning Free khả dụng trên OpenCode trong thời gian có thời hạn. Đội ngũ đang dùng khoảng thời gian này để thu thập phản hồi và cải thiện mô hình.
+- Nemotron 3.5 Super VL Free khả dụng trên OpenCode trong thời gian có thời hạn. Đội ngũ đang dùng khoảng thời gian này để thu thập phản hồi và cải thiện mô hình.
+- Big Pickle là một mô hình bí ẩn, miễn phí trên OpenCode trong thời gian có thời hạn. Đội ngũ đang dùng khoảng thời gian này để thu thập phản hồi và cải thiện mô hình.
+- Space Bunny Free là một mô hình bí ẩn, miễn phí trên OpenCode trong thời gian có thời hạn. Nhà cung cấp của nó tuân thủ chính sách lưu trữ bằng không và không dùng dữ liệu của bạn để huấn luyện mô hình.
+- Cat Jam Free là một mô hình bí ẩn, miễn phí trên OpenCode trong thời gian có thời hạn. Nhà cung cấp của nó không dùng dữ liệu của bạn để huấn luyện mô hình và giữ lại dữ liệu trong 30 ngày vì lý do an toàn. Mô hình này không khả dụng tại Angola, Belarus, Campuchia, Trung Quốc (bao gồm Hồng Kông và Ma Cao), Cuba, Cộng hòa Dân chủ Congo, Guinea Xích Đạo, Iran, Iraq, Lào, Libya, Nigeria, Triều Tiên, Nga, Syria, Turkmenistan, Uzbekistan, Venezuela, hoặc các vùng Crimea, Donetsk và Luhansk của Ukraine.
+- LongCat 2.5 Preview Free miễn phí trên OpenCode trong thời gian có thời hạn. Nhà cung cấp của nó tuân thủ chính sách lưu trữ bằng không và không dùng dữ liệu của bạn để huấn luyện mô hình.
+- Muse Spark 1.3 Contributor Free khả dụng trên OpenCode trong thời gian có thời hạn. Đội ngũ đang dùng khoảng thời gian này để thu thập phản hồi và cải thiện mô hình.
+- Jev 1.13 Free khả dụng trên OpenCode trong thời gian có thời hạn.
+
+Hãy [liên hệ với chúng tôi](mailto:help@anoma.ly) nếu bạn có câu hỏi.
+
+### Tự động nạp thêm
+
+Nếu số dư của bạn thấp hơn $5, Console sẽ tự động nạp thêm $20. Bạn có thể thay đổi số tiền tự động nạp thêm hoặc tắt
+hoàn toàn tính năng này.
+
+### Hạn mức hằng tháng
+
+Bạn có thể đặt hạn mức sử dụng hằng tháng cho toàn bộ không gian làm việc và cho từng thành viên trong nhóm của bạn.
+
+Ví dụ, với hạn mức sử dụng hằng tháng là $20, Console sẽ không dùng quá $20 trong một tháng. Nếu bật tự động nạp thêm,
+bạn vẫn có thể bị tính phí hơn $20 khi số dư thấp hơn $5.
+
+### Mô hình đã ngừng hỗ trợ
+
+| Mô hình              | Ngày ngừng hỗ trợ |
+| ------------------ | ----------------- |
+| GPT 5.2 Codex      | 23 tháng 7, 2026  |
+| GPT 5.1 Codex      | 23 tháng 7, 2026  |
+| GPT 5.1 Codex Max  | 23 tháng 7, 2026  |
+| GPT 5.1 Codex Mini | 23 tháng 7, 2026  |
+| GPT 5 Codex        | 23 tháng 7, 2026  |
+| Claude Opus 4.1    | 5 tháng 8, 2026   |
+| Claude Sonnet 4    | 15 tháng 6, 2026  |
+| Claude Haiku 3.5   | 16 tháng 2, 2026  |
+| Gemini 3 Pro       | 9 tháng 3, 2026   |
+| MiniMax M2.5       | 5 tháng 8, 2026   |
+| MiniMax M2.1       | 15 tháng 3, 2026  |
+| GLM 5              | 14 tháng 5, 2026  |
+| GLM 4.7            | 15 tháng 3, 2026  |
+| GLM 4.6            | 15 tháng 3, 2026  |
+| Kimi K2.5          | 5 tháng 8, 2026   |
+| Kimi K2 Thinking   | 6 tháng 3, 2026   |
+| Kimi K2            | 6 tháng 3, 2026   |
+| Qwen3 Coder 480B   | 6 tháng 2, 2026   |
+
+## Quyền riêng tư
+
+Tất cả mô hình của chúng tôi đều được lưu trữ tại Mỹ và EU. Các nhà cung cấp của chúng tôi tuân thủ chính sách lưu trữ
+bằng không và không dùng dữ liệu của bạn để huấn luyện mô hình, với các ngoại lệ sau:
+
+- Big Pickle: Trong thời gian miễn phí, dữ liệu thu thập được có thể được dùng để cải thiện mô hình.
+- Exo Free: Trong thời gian miễn phí, dữ liệu thu thập được có thể được dùng để cải thiện mô hình.
+- MiMo-V2.6-Flash Free: Trong thời gian miễn phí, dữ liệu thu thập được có thể được dùng để cải thiện mô hình.
+- MiMo-V2.5 Free: Trong thời gian miễn phí, dữ liệu thu thập được có thể được dùng để cải thiện mô hình.
+- Nemotron 3 Ultra Free (endpoint miễn phí của NVIDIA): Chỉ dùng để thử nghiệm — không gửi dữ liệu cá nhân hoặc bí mật. Việc sử dụng của bạn được ghi nhận cho mục đích bảo mật và để cải thiện sản phẩm, dịch vụ của NVIDIA. Dữ liệu phiên được ghi lại cho mục đích cải thiện không liên kết với danh tính của bạn hay bất kỳ định danh lâu dài nào. Để biết thêm về cách chúng tôi xử lý dữ liệu, xem [Chính sách Quyền riêng tư](https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf) của chúng tôi. Bằng việc tương tác với endpoint này, bạn đồng ý với việc chúng tôi thu thập, ghi lại và sử dụng thông tin đó cùng với [Điều khoản Dịch vụ Thử nghiệm API của NVIDIA](https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf).
+- Nemotron 3.5 Lightning Free (endpoint miễn phí của NVIDIA): Chỉ dùng để thử nghiệm — không gửi dữ liệu cá nhân hoặc bí mật. Việc sử dụng của bạn được ghi nhận cho mục đích bảo mật và để cải thiện sản phẩm, dịch vụ của NVIDIA. Dữ liệu phiên được ghi lại cho mục đích cải thiện không liên kết với danh tính của bạn hay bất kỳ định danh lâu dài nào. Để biết thêm về cách chúng tôi xử lý dữ liệu, xem [Chính sách Quyền riêng tư](https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf) của chúng tôi. Bằng việc tương tác với endpoint này, bạn đồng ý với việc chúng tôi thu thập, ghi lại và sử dụng thông tin đó cùng với [Điều khoản Dịch vụ Thử nghiệm API của NVIDIA](https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf).
+- Nemotron 3.5 Super VL Free (endpoint miễn phí của NVIDIA): Chỉ dùng để thử nghiệm — không gửi dữ liệu cá nhân hoặc bí mật. Việc sử dụng của bạn được ghi nhận cho mục đích bảo mật và để cải thiện sản phẩm, dịch vụ của NVIDIA. Dữ liệu phiên được ghi lại cho mục đích cải thiện không liên kết với danh tính của bạn hay bất kỳ định danh lâu dài nào. Để biết thêm về cách chúng tôi xử lý dữ liệu, xem [Chính sách Quyền riêng tư](https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf) của chúng tôi. Bằng việc tương tác với endpoint này, bạn đồng ý với việc chúng tôi thu thập, ghi lại và sử dụng thông tin đó cùng với [Điều khoản Dịch vụ Thử nghiệm API của NVIDIA](https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf).
+- API của OpenAI: Các request được lưu trong 30 ngày theo [Chính sách dữ liệu của OpenAI](https://platform.openai.com/docs/guides/your-data).
+- API của Anthropic: Các request được lưu trong 30 ngày theo [Chính sách dữ liệu của Anthropic](https://docs.anthropic.com/en/docs/claude-code/data-usage).
+- API của Mistral: Lời nhắc và các đầu vào khác không được dùng để huấn luyện. Dữ liệu được lưu theo [Chính sách Lưu trữ Dữ liệu của Mistral](https://docs.mistral.ai/admin/monitor-comply/zero-data-retention).
+- Cat Jam Free: Lời nhắc và các đầu vào khác không được dùng để huấn luyện. Dữ liệu được lưu trong 30 ngày vì lý do an toàn.
+- Muse Spark 1.3 Contributor Free: Giá token được chiết khấu mạnh để đổi lấy quyền sử dụng lời nhắc và kết quả hoàn thành của bạn để huấn luyện các mô hình Meta trong tương lai. [Tìm hiểu thêm](https://dev.meta.ai/docs/pricing-rate-limits#contributor-tier).
+
+Đối với các mô hình có gói đăng ký, xem [quyền riêng tư của Go](/console/go#privacy).
+
+## Cho các nhóm
+
+Chia sẻ mô hình Console với nhóm của bạn từ một [không gian làm việc](/console/workspaces). Chủ sở hữu và quản
+trị viên có thể [mời thành viên](/console/members), chọn mô hình nào được bật trong tab **Mô hình**, đặt
+[ngân sách](/console/budgets) và kết nối [nhà cung cấp của riêng họ](/console/providers).
+
+## Bối cảnh
+
+Có rất nhiều mô hình, nhưng chỉ một vài mô hình hoạt động tốt với vai trò tác nhân lập trình mã. Cấu hình, hiệu năng và
+chất lượng cũng khác nhau giữa các nhà cung cấp, nên một mô hình được truy cập qua một gateway như OpenRouter có thể
+hoạt động khác.
+
+<Callout type="tip">Chúng tôi đã kiểm thử một nhóm mô hình và nhà cung cấp được chọn, hoạt động tốt với OpenCode.</Callout>
+
+Để xây dựng danh mục này, chúng tôi đã:
+
+1. Kiểm thử một nhóm mô hình được chọn và trao đổi với đội ngũ của họ về cách vận hành tốt nhất.
+2. Phối hợp với các nhà cung cấp để đảm bảo các mô hình được phục vụ đúng cách.
+3. Đo hiệu năng từng cặp mô hình/nhà cung cấp để đưa ra một danh sách mà chúng tôi thấy đáng để giới thiệu.
+
+Console là một AI gateway giúp bạn truy cập các mô hình này.
+
+## Mục tiêu
+
+Chúng tôi xây dựng Console để:
+
+1. **Đo hiệu năng** các mô hình và nhà cung cấp tốt nhất cho tác nhân lập trình mã.
+2. Cung cấp lựa chọn **chất lượng cao nhất** mà không hạ hiệu năng hay chuyển tuyến sang nhà cung cấp rẻ hơn.
+3. Chuyển tới bạn **mức giảm giá** bằng cách bán theo chi phí, chỉ cộng thêm phần nhỏ để bù chi phí xử lý.
+4. **Không phụ thuộc vào một nhà cung cấp**: dùng Console với bất kỳ tác nhân lập trình mã nào, hoặc dùng một nhà cung cấp khác với OpenCode.

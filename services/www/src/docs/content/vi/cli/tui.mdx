@@ -1,0 +1,90 @@
+---
+title: "TUI"
+description: "Bắt đầu một phiên và dùng các quy trình thường ngày trong giao diện terminal."
+---
+
+Chạy OpenCode từ dự án của bạn, nhập một yêu cầu và nhấn **Enter**.
+
+```bash
+cd ~/code/my-project
+opencode
+```
+
+```text
+Explain how authentication works in this project
+```
+
+Nhấn **Shift+Enter**, **Ctrl+Enter**, **Alt+Enter** hoặc **Ctrl+J** để xuống dòng mới. Khi OpenCode đang xử lý, **Enter** dẫn hướng phiên đang hoạt động; nhấn **Ctrl+X**, rồi **Enter** để xếp lời nhắc vào hàng đợi chạy sau.
+
+## Ngữ cảnh
+
+Nhập `@` để tìm một tệp, rồi chọn nó để đính kèm tệp đó vào lời nhắc. Tiếp tục nhập sau `@` để thu hẹp kết quả.
+
+```text
+Review @src/auth.ts for error handling problems
+```
+
+Bạn có thể chỉ thêm một dòng hoặc một khoảng sau đường dẫn.
+
+```text
+Explain @src/auth.ts#20-45
+```
+
+## Shell
+
+Nhập `!` ở đầu một lời nhắc trống để vào chế độ shell. Nhập một lệnh và nhấn **Enter**; nhấn **Esc** để rời chế độ shell mà không chạy lệnh nào.
+
+```text
+!git status
+```
+
+Lệnh shell chạy trong thư mục làm việc của phiên và kết quả của chúng được giữ trong phiên đó.
+
+## Lệnh
+
+Nhập `/` để liệt kê các lệnh dạng dấu gạch chéo. Tiếp tục nhập để lọc danh sách, rồi nhấn **Enter** để chạy lệnh đã chọn.
+
+```text
+/models
+```
+
+Các lệnh thường dùng gồm `/new`, `/sessions`, `/models`, `/agents`, `/undo`, `/redo` và `/editor`. Nhấn **Ctrl+P** để mở bảng lệnh với mọi hành động khả dụng trong chế độ xem hiện tại.
+
+Sau một bản cập nhật, OpenCode hiện điều mới trong bản phát hành một lần trên màn hình chính. Chạy `/highlights` để xem lại, hoặc đặt `"highlights": false` trong [`cli.json`](/cli/config#alerts) để ngăn nó tự mở.
+
+## Câu hỏi phụ
+
+Chạy `/btw <question>` để hỏi một câu nhanh về nội dung đã trao đổi cho tới đó. Câu trả lời dùng ngữ cảnh và mô hình hiện tại của phiên nhưng không được thêm vào cuộc trò chuyện, nên nó không ảnh hưởng tới các lời nhắc về sau. Một chỉ báo `/btw` hiện ở chân trang lời nhắc trong khi nó chạy, và câu trả lời mở trong một hộp thoại; nhấn **C** để sao chép.
+
+```text
+/btw why did the test in step 2 fail?
+```
+
+## Mô hình
+
+Nhấn **Ctrl+X**, rồi **M** để chọn một mô hình, hoặc chạy `/models`. Nhấn **F2** để chuyển qua lại các mô hình dùng gần đây.
+
+Nhấn **Ctrl+X**, rồi **A** để chọn một tác nhân, hoặc chạy `/agents`. Nhấn **Shift+Tab** để chuyển qua lại các tác nhân.
+
+## Phiên
+
+Nhấn **Ctrl+X**, rồi **N** để bắt đầu một phiên mới. Nhấn **Ctrl+X**, rồi **L** hoặc chạy `/sessions` để quay lại một phiên đã có; **Ctrl+O** mở cả các phiên và dự án gần đây.
+
+Tab được bật mặc định. Dùng **Ctrl+Tab** và **Ctrl+Shift+Tab** để chuyển giữa chúng, **Ctrl+X** rồi **W** để đóng một tab, và **Ctrl+Shift+T** để mở lại tab đã đóng gần nhất.
+
+## Lịch sử
+
+Nhấn **Ctrl+X**, rồi **U**, hoặc chạy `/undo`, để hoàn tác tin nhắn người dùng gần nhất và công việc đã làm sau đó. Lời nhắc đã hoàn tác trở lại ô soạn thảo để bạn có thể chỉnh sửa.
+
+Nhấn **Ctrl+X**, rồi **R**, hoặc chạy `/redo`, để khôi phục lại công việc đã hoàn tác. Thay vào đó, gửi một lời nhắc mới sẽ chấp nhận thao tác hoàn tác và tiếp tục từ điểm đó.
+
+## Trình chỉnh sửa
+
+Đặt `VISUAL` hoặc `EDITOR`, rồi nhấn **Ctrl+X**, rồi **E**, hoặc chạy `/editor`, để chỉnh sửa lời nhắc hiện tại trong trình chỉnh sửa đó. Lưu và thoát để đưa văn bản trở lại ô soạn thảo, rồi nhấn **Enter** để gửi.
+
+```bash
+export EDITOR="nvim"
+opencode
+```
+
+Phím leader mặc định là **Ctrl+X**. Xem [Phím tắt](/cli/keybinds) để đổi các phím tắt này.

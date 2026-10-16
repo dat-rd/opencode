@@ -1,0 +1,287 @@
+---
+title: "Tham chiếu"
+---
+
+Tham chiếu trao cho OpenCode quyền truy cập có tên đến các thư mục bên ngoài dự án
+hiện tại. Thêm một mục trong `opencode.json` hoặc `opencode.jsonc`, rồi đính kèm bí danh
+của nó trong client khi bạn cần.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "references": {
+    "docs": {
+      "path": "../product-docs",
+      "description": "Use for product behavior and terminology",
+    },
+  },
+}
+```
+
+Sau khi đính kèm `docs`, hãy yêu cầu tác nhân kiểm tra đường dẫn liên quan:
+
+```text
+Read the attached docs reference and summarize api/authentication.md.
+```
+
+Dùng tham chiếu cho tài liệu, thư viện dùng chung, ví dụ hoặc mã nguồn từ một kho lưu
+trữ khác.
+
+## Cục bộ
+
+Dùng `path` cho một thư mục cục bộ:
+
+```jsonc
+{
+  "references": {
+    "design-system": {
+      "path": "../design-system",
+      "description": "Use when working with components or design tokens",
+    },
+  },
+}
+```
+
+Đường dẫn hoạt động như sau:
+
+- Đường dẫn tương đối được phân giải từ thư mục chứa tệp cấu hình.
+- Đường dẫn tuyệt đối được hỗ trợ.
+- Đường dẫn tương đối so với home, chẳng hạn như `~/docs`, được hỗ trợ.
+
+Dùng dạng rút gọn dạng chuỗi khi không cần trường nào khác:
+
+```jsonc
+{
+  "references": {
+    "docs": "../docs",
+    "shared": "~/work/shared",
+  },
+}
+```
+
+<Callout type="note">
+  Một chuỗi rút gọn chỉ là đường dẫn cục bộ khi nó bắt đầu bằng `.`, `/` hoặc `~`. Hãy dùng `./docs`, không dùng `docs`; một giá trị
+  `docs` trần sẽ được hiểu là một kho lưu trữ Git.
+</Callout>
+
+## Git
+
+Dùng `repository` cho một kho lưu trữ Git từ xa:
+
+```jsonc
+{
+  "references": {
+    "effect": {
+      "repository": "Effect-TS/effect",
+      "branch": "main",
+    },
+    "internal-sdk": {
+      "repository": "git@gitlab.example.com:platform/sdk.git",
+      "branch": "release/v2",
+    },
+  },
+}
+```
+
+Các dạng remote được hỗ trợ gồm:
+
+- Dạng rút gọn GitHub `owner/repo`
+- URL Git
+- Dạng host/path
+- Remote kiểu SCP
+
+Các kho lưu trữ `file:` cục bộ không được hỗ trợ.
+
+Dùng dạng rút gọn dạng chuỗi để theo nhánh mặc định của remote:
+
+```jsonc
+{
+  "references": {
+    "effect": "Effect-TS/effect",
+    "sdk": "gitlab.com/platform/sdk",
+  },
+}
+```
+
+Không có `branch`, OpenCode kiểm tra ra và làm mới nhánh mặc định của remote. Tên nhánh có
+thể chứa chữ cái, chữ số, `/`, `_`, `.` và `-`, nhưng không được bắt đầu bằng `-` hoặc chứa
+`..`.
+
+```jsonc
+{
+  "references": {
+    "sdk": {
+      "repository": "example/sdk",
+      "branch": "release/v2.1",
+    },
+  },
+}
+```
+
+## Lưu trữ
+
+OpenCode chuẩn hóa mỗi remote và lưu một bản checkout cho mỗi cặp remote và nhánh trong
+thư mục dữ liệu toàn cục của nó. Không có nhánh tường minh, đường dẫn có dạng:
+
+```text
+opencode/repos/<host>/<repository-path>
+```
+
+Trên một bản cài đặt Linux điển hình, `Effect-TS/effect` được lưu tại:
+
+```text
+~/.local/share/opencode/repos/github.com/Effect-TS/effect
+```
+
+Một nhánh tường minh thêm hậu tố `@<branch>` đã mã hóa:
+
+```text
+~/.local/share/opencode/repos/github.com/Effect-TS/effect@main
+```
+
+## Làm mới
+
+Các kho lưu trữ còn thiếu được sao chép bất đồng bộ. Các bản checkout hiện có được kiểm
+tra ở nền khi tham chiếu được nạp hoặc nạp lại, và sau khi một lời nhắc người dùng mới
+được tiếp nhận trong Location của chúng.
+
+```text
+Prompt admitted → refresh check starts in background → agent continues
+```
+
+Một bản checkout đủ điều kiện khi lần thử làm mới gần nhất cách đây ít nhất 24 giờ, hoặc
+khi chưa ghi nhận lần thử nào. Một lần làm mới sẽ fetch và đặt lại về nhánh đã cấu hình hoặc
+nhánh mặc định của remote.
+
+```text
+Last attempt: 25 hours ago → eligible
+Last attempt: 2 hours ago  → skipped
+```
+
+Hành vi làm mới tuân theo các quy tắc sau:
+
+- Dấu thời gian tồn tại qua các lần khởi động lại dịch vụ.
+- Các Location dùng chung một bản checkout sẽ dùng chung dấu thời gian của nó.
+- Các lần thử thất bại được ghi log và vẫn chịu giới hạn 24 giờ.
+- Không có thăm dò định kỳ khi một Location không được dùng.
+- Lỗi khi sao chép hoặc làm mới không chặn các tham chiếu khác nạp.
+
+Lời nhắc không chờ việc sao chép hay làm mới. Một tệp đính kèm có thể chứa nội dung cũ hơn
+ngay cả khi một lần đọc bằng công cụ về sau thấy bản checkout đã cập nhật, và một tham chiếu
+mới có thể xuất hiện trước khi bản checkout của nó sẵn sàng.
+
+```text
+Attachment created → cached content
+Background refresh completes → later tool read sees newer content
+```
+
+<Callout type="warning">
+  Các bản checkout trong bộ nhớ đệm được chia sẻ và có thể cập nhật trong lúc một tác nhân đang dùng chúng. Hãy tránh chỉnh sửa các
+  bản checkout trong bộ nhớ đệm vì một lần làm mới sẽ đặt lại chúng.
+</Callout>
+
+## Hướng dẫn
+
+`description` cho biết khi nào một tham chiếu phù hợp. Những tham chiếu có mô tả sẽ xuất
+hiện trong chỉ dẫn của tác nhân kèm bí danh và đường dẫn đã phân giải.
+
+```jsonc
+{
+  "references": {
+    "docs": {
+      "path": "../docs",
+      "description": "Use for product behavior and terminology",
+    },
+  },
+}
+```
+
+Những tham chiếu không có mô tả vẫn khả dụng với client nhưng không được giới thiệu tự động.
+
+```jsonc
+{
+  "references": {
+    "archive": {
+      "path": "../archive",
+    },
+  },
+}
+```
+
+## Khả năng hiển thị
+
+Đặt `hidden` thành `true` để loại một tham chiếu khỏi các bộ chọn tương tác của client:
+
+```jsonc
+{
+  "references": {
+    "internal": {
+      "path": "../internal",
+      "description": "Use for internal service behavior",
+      "hidden": true,
+    },
+  },
+}
+```
+
+`hidden` chỉ ảnh hưởng đến khả năng hiển thị tương tác. Tham chiếu vẫn còn trong API tham
+chiếu và, khi có mô tả, trong chỉ dẫn của tác nhân.
+
+## Cách dùng
+
+Client đính kèm một tham chiếu theo bí danh gốc của nó. Tệp đính kèm chứa danh sách không
+đệ quy các tệp và thư mục trực tiếp của gốc đó.
+
+```text
+Attached alias: docs
+Ask: Inspect docs/guides/deployment.md and explain the deployment steps.
+```
+
+Hãy yêu cầu tác nhân kiểm tra một đường dẫn cụ thể khi bạn cần nội dung bên dưới gốc.
+
+## Quyền
+
+Tham chiếu không cấp thêm quyền công cụ nào. Truy cập ra ngoài Location đang hoạt động vẫn
+tuân theo các quy tắc công cụ thông thường và quyền `external_directory`; việc chỉnh sửa
+cũng cần quyền chỉnh sửa tương ứng.
+
+```text
+Read ../product-docs/api.md
+```
+
+Yêu cầu chỉ thành công khi các quyền đang hoạt động cho phép lần đọc bên ngoài đó.
+
+## Trường
+
+| Trường         | Cục bộ | Git      | Mô tả                                   |
+| ------------- | -------- | -------- | --------------------------------------------- |
+| `path`        | Bắt buộc | Không       | Đường dẫn thư mục cục bộ                          |
+| `repository`  | Không       | Bắt buộc | Kho lưu trữ Git từ xa                         |
+| `branch`      | Không       | Tùy chọn | Nhánh cần fetch và kiểm tra ra                 |
+| `description` | Tùy chọn | Tùy chọn | Hướng dẫn mô tả khi nào tác nhân nên dùng nó |
+| `hidden`      | Tùy chọn | Tùy chọn | Ẩn nó khỏi các bộ chọn tương tác của client     |
+
+Một mục Git đầy đủ có thể dùng mọi trường tương thích Git:
+
+```jsonc
+{
+  "references": {
+    "sdk": {
+      "repository": "example/sdk",
+      "branch": "main",
+      "description": "Use for SDK implementation details",
+      "hidden": false,
+    },
+  },
+}
+```
+
+## Bí danh
+
+Một bí danh không được rỗng hoặc chứa `/`, `\`, khoảng trắng, dấu gạch ngược hoặc dấu phẩy.
+
+```text
+Valid:   docs
+Invalid: product docs
+Invalid: docs/api
+```

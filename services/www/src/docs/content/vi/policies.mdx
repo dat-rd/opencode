@@ -1,0 +1,239 @@
+---
+title: "Chính sách"
+description: "Cho phép hoặc từ chối các hành động của OpenCode trên những tài nguyên đã đặt tên, với chính sách của tổ chức có quyền quyết định cuối cùng."
+---
+
+Chính sách quyết định liệu OpenCode có được phép thực hiện một hành động trên một tài
+nguyên đã đặt tên hay không. Chúng được viết dưới `policies` và cũng có thể được cung
+cấp bởi một không gian làm việc
+[OpenCode Console](/console) đã kết nối.
+
+Chính sách tách biệt với [quyền](/permissions). Quyền là các quy tắc công cụ theo từng
+tác nhân, có thể `allow`, `deny` hoặc `ask`. Chính sách chỉ có hai kết quả, không bao giờ
+hỏi, và chỉ siết lại những gì mà quyền và nhà cung cấp vốn cho phép.
+
+## Cấu hình
+
+Từ chối một nhà cung cấp ở mọi nơi bằng cách thêm một câu lệnh vào `opencode.jsonc`:
+
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "policies": [{ "action": "provider.use", "resource": "openai", "effect": "deny" }],
+}
+```
+
+Một nhà cung cấp bị từ chối sẽ biến mất khỏi danh mục và khỏi phần chọn mô hình, ngay cả
+khi nó có thông tin đăng nhập hợp lệ.
+
+Các bản phát hành trước đọc chính sách từ `experimental.policies`. Khóa đó vẫn hoạt
+động và hợp nhất vào `policies`:
+
+```jsonc
+{
+  "experimental": {
+    "policies": [{ "action": "provider.use", "resource": "openai", "effect": "deny" }],
+  },
+}
+```
+
+## Câu lệnh
+
+Mỗi câu lệnh có ba trường:
+
+| Trường      | Giá trị                                        | Ý nghĩa                                              |
+| ---------- | --------------------------------------------- | ---------------------------------------------------- |
+| `action`   | `provider.use`, `tool.use`, `integration.use` | Thao tác đang được kiểm soát                       |
+| `resource` | Chuỗi hoặc mẫu ký tự đại diện                    | Điều mà câu lệnh áp dụng; tùy thuộc vào hành động |
+| `effect`   | `allow`, `deny`                               | Quyết định khi câu lệnh này khớp             |
+
+Các câu lệnh không vượt qua kiểm tra sẽ bị loại bỏ kèm cảnh báo trong log máy chủ và phần
+còn lại của danh sách vẫn được áp dụng. Hãy kiểm tra log sau khi sửa một `deny`.
+
+## So khớp
+
+Tài nguyên dùng cùng các ký tự đại diện trên toàn bộ giá trị như quyền: `*` khớp không
+hoặc nhiều ký tự và `?` khớp một ký tự.
+
+```jsonc
+{
+  "policies": [{ "action": "provider.use", "resource": "company-*", "effect": "deny" }],
+}
+```
+
+Điều này từ chối `company-us` và `company-eu`. Một mẫu kết thúc bằng ` *` cũng khớp với
+giá trị không có đối số, nên `shell:git push *` bao phủ cả `git push` đứng riêng.
+
+## Thứ tự
+
+Khi nhiều câu lệnh khớp, câu lệnh cuối cùng sẽ thắng. Không có quy tắc ưu tiên độ cụ thể,
+vì vậy hãy đặt các câu lệnh rộng trước và các ngoại lệ sau chúng. Nếu không có gì khớp,
+hành động được phép.
+
+```jsonc
+{
+  "policies": [
+    { "action": "provider.use", "resource": "*", "effect": "deny" },
+    { "action": "provider.use", "resource": "anthropic", "effect": "allow" },
+  ],
+}
+```
+
+Chỉ còn Anthropic khả dụng.
+
+## Nhà cung cấp
+
+`provider.use` điều khiển việc một nhà cung cấp có dùng được hay không. Tài nguyên là
+ID nhà cung cấp: `anthropic`, `openai`, `opencode`, hoặc một ID tùy chỉnh từ
+[`providers`](/providers).
+
+```jsonc
+{
+  "providers": {
+    "company-ai": {
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": { "baseURL": "https://ai.company.example/v1" },
+    },
+  },
+  "policies": [
+    { "action": "provider.use", "resource": "*", "effect": "deny" },
+    { "action": "provider.use", "resource": "company-ai", "effect": "allow" },
+  ],
+}
+```
+
+Mục `providers` cấu hình endpoint; các câu lệnh biến nó thành nhà cung cấp duy nhất mà
+OpenCode sẽ dùng. Chính sách áp dụng bất kể nhà cung cấp được biết đến bằng cách nào: dữ
+liệu danh mục, biến môi trường, tài khoản đã lưu, tiện ích mở rộng tích hợp sẵn hoặc cấu hình.
+
+Hãy dùng `provider.use` thay cho các danh sách `enabled_providers` và
+`disabled_providers` của V1. Tệp V1 vẫn nạp được; xem
+[Chuyển từ V1](/migrate-v1#supported-fields-without-direct-native-equivalents).
+
+## Công cụ
+
+Các câu lệnh `tool.use` từ chối dứt khoát một lần kiểm tra [quyền](/permissions). Tài
+nguyên là `<action>:<value>`, được so khớp với mọi tài nguyên mà công cụ kiểm tra.
+
+```jsonc
+{
+  "policies": [
+    { "action": "tool.use", "resource": "shell:git push *", "effect": "deny" },
+    { "action": "tool.use", "resource": "edit:*.env", "effect": "deny" },
+    { "action": "tool.use", "resource": "webfetch:*", "effect": "deny" },
+  ],
+}
+```
+
+Một lần kiểm tra bị từ chối sẽ thất bại với `Blocked by configuration policy` thay vì hỏi.
+Nó áp dụng sau các quy tắc của tác nhân và các lần phê duyệt đã lưu, nên ghi đè cả `ask`
+lẫn phê duyệt "Luôn cho phép".
+
+| Mẫu                      | Chặn                                      |
+| ---------------------------- | ------------------------------------------- |
+| `shell:*`                    | Mọi lệnh shell                         |
+| `read:*/.ssh/*`              | Đọc tư liệu SSH                        |
+| `external_directory:*`       | Mọi truy cập ra ngoài Location hoặc worktree |
+| `subagent:general`           | Khởi chạy một subagent                      |
+| `github_delete_repository:*` | Một công cụ MCP                                |
+| `*`                          | Mọi thứ chưa bị từ chối               |
+
+Một câu lệnh `tool.use` với `allow` không bao giờ cấp quyền truy cập. Nó chỉ gỡ bỏ một
+`deny` rộng hơn đứng trước, sau đó các quy tắc riêng của tác nhân sẽ quyết định.
+
+```jsonc
+{
+  "policies": [
+    { "action": "tool.use", "resource": "shell:*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:git status *", "effect": "allow" },
+  ],
+}
+```
+
+`git status` rơi về quy tắc `shell` của tác nhân; mọi lệnh khác đều bị chặn.
+
+## Tích hợp
+
+`integration.use` điều khiển việc một máy chủ MCP, kỹ năng hoặc tiện ích mở rộng có được nạp hay
+không. Tài nguyên là loại tích hợp và ID của nó:
+
+| Tài nguyên          | Áp dụng cho                                                        |
+| ----------------- | ----------------------------------------------------------------- |
+| `mcp:<server>`    | Một [máy chủ MCP](/mcp-servers) theo tên đã cấu hình              |
+| `skill:<id>`      | Một [kỹ năng](/skills) theo ID của nó                                      |
+| `plugin:<target>` | Một [tiện ích mở rộng](/plugins) theo tên gói không có phiên bản hoặc theo đường dẫn tuyệt đối |
+
+```jsonc
+{
+  "policies": [
+    { "action": "integration.use", "resource": "mcp:*", "effect": "deny" },
+    { "action": "integration.use", "resource": "mcp:github", "effect": "allow" },
+    { "action": "integration.use", "resource": "plugin:opencode-acme-cli", "effect": "deny" },
+  ],
+}
+```
+
+Một máy chủ MCP hoặc kỹ năng bị từ chối sẽ bị loại bỏ, và một tiện ích mở rộng bị từ chối sẽ không
+được nạp, bất kể nó được cấu hình thế nào.
+
+## Thứ tự ưu tiên
+
+Cài đặt thông thường để cấu hình gần nhất thắng. Chính sách đảo ngược điều đó: các câu
+lệnh từ cấu hình rộng hơn được đánh giá sau, nên chúng ghi đè các câu lệnh hẹp hơn. Cấu
+hình do quản lý và Console đã kết nối luôn có tiếng nói cuối cùng.
+
+| Quyền uy   | Nguồn                                                                                                         |
+| ----------- | -------------------------------------------------------------------------------------------------------------- |
+| 1 (cao nhất) | Không gian làm việc OpenCode Console đã kết nối                                                                           |
+| 2           | Tùy chọn được quản lý trên macOS (`/Library/Managed Preferences/ai.opencode.managed.plist`)                           |
+| 3           | `opencode.json(c)` hệ thống (`/Library/Application Support/opencode`, `/etc/opencode`, `%ProgramData%\opencode`) |
+| 4           | `~/.config/opencode/opencode.json(c)` toàn cục                                                                   |
+| 5           | `opencode.json(c)` trực tiếp; thư mục ngoài thắng thư mục trong                                                   |
+| 6 (thấp nhất)  | `.opencode/opencode.json(c)`; thư mục ngoài thắng thư mục trong                                                |
+
+Một kho lưu trữ không thể bật lại một nhà cung cấp mà bạn đã từ chối ở phạm vi toàn cục:
+
+```jsonc title="~/.config/opencode/opencode.jsonc"
+{
+  "policies": [{ "action": "provider.use", "resource": "openai", "effect": "deny" }],
+}
+```
+
+```jsonc title="project/opencode.jsonc"
+{
+  "policies": [{ "action": "provider.use", "resource": "openai", "effect": "allow" }],
+}
+```
+
+`openai` vẫn bị từ chối. Trong cùng một tệp, các câu lệnh giữ nguyên thứ tự đã viết.
+
+## Console
+
+Một không gian làm việc trên [OpenCode Console](/console) biên dịch các chính sách Nhà cung cấp và
+Công cụ của nó thành câu lệnh rồi trả về chúng cùng cấu hình không gian làm việc. OpenCode thêm
+chúng sau mọi câu lệnh được viết, nên chúng có tiếng nói cuối cùng: một `deny` của tổ
+chức không thể bị gỡ bỏ bởi `allow` của kho lưu trữ hoặc của người dùng, và một `allow`
+của tổ chức sẽ gỡ bỏ một `deny` có quyền uy thấp hơn.
+
+Các lần từ chối từ những câu lệnh này sẽ nêu tên không gian làm việc:
+
+```text
+Blocked by Acme's policy
+```
+
+Các câu lệnh đi theo tài khoản đã kết nối.
+
+| Sự kiện                       | Kết quả                                             |
+| --------------------------- | -------------------------------------------------- |
+| Thay đổi chính sách trên Console      | Được áp dụng ở lần lấy kế tiếp, khoảng một lần mỗi phút     |
+| Chuyển sang không gian làm việc khác | Các câu lệnh được thay bằng câu lệnh của không gian làm việc đó          |
+| Ngắt kết nối                  | Các câu lệnh bị xóa                                 |
+| Không thể tới Console         | Các câu lệnh gần nhất của kết nối đó vẫn có hiệu lực |
+
+Tiện ích mở rộng Console và tiện ích mở rộng chính sách không thể bị vô hiệu hóa từ `plugins`; xem
+[điều khiển tiện ích mở rộng](/plugins#control).
+
+<Callout type="note">
+  Chính sách không cấu hình endpoint hay thông tin đăng nhập, và chúng không thể khiến một nhà cung cấp không dùng được trở nên dùng được. Chúng cũng không
+  đặt mã tiện ích mở rộng vào hộp cát: một nhà cung cấp bị từ chối sẽ bị chặn trên đường nhà cung cấp và mô hình thông thường.
+</Callout>

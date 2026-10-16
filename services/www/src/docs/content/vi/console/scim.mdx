@@ -1,0 +1,89 @@
+---
+title: "Đồng bộ thư mục"
+description: "Tự động thêm và xóa thành viên không gian làm việc từ Okta, Microsoft Entra ID, hoặc bất kỳ nhà cung cấp danh tính SCIM 2.0 nào."
+---
+
+Đồng bộ thư mục (SCIM 2.0) thêm người vào không gian làm việc khi bạn gán họ trong nhà cung cấp danh tính của mình, và gỡ quyền truy cập của họ khi bạn bỏ gán. Vai trò vẫn được quản lý trong Console.
+
+```text
+https://opencode.ai/console/scim/v2
+```
+
+## Trước khi bắt đầu
+
+- Thiết lập [SSO](/console/sso) cho không gian làm việc.
+- [Xác minh](/console/sso#verify-email-domains) mọi miền email mà mọi người đăng nhập. Đồng bộ thư mục chỉ thêm người thuộc miền đã xác minh; hãy mời bất kỳ ai khác từ trang [Thành viên](/console/members).
+
+## Tạo token
+
+1. Mở **Cài đặt › Bảo mật** và nhấp **Thiết lập** dưới mục **Đồng bộ thư mục**.
+2. Chép **SCIM base URL** và token. Token chỉ hiển thị một lần, vì vậy hãy lưu nó trong trình quản lý bí mật.
+
+Nhà cung cấp danh tính của bạn gửi token này trong mọi yêu cầu.
+
+```text
+Authorization: Bearer <token>
+```
+
+## Kết nối nhà cung cấp danh tính của bạn
+
+### Okta
+
+1. Thêm ứng dụng **SCIM 2.0 Test App (Header Auth)**.
+2. Đặt base URL, rồi nhập `Bearer ` tiếp theo là token trong **API Token**.
+3. Bật **Create Users**, **Update User Attributes** và **Deactivate Users**. Để **Import Groups** và đồng bộ
+   mật khẩu ở trạng thái tắt.
+
+### Microsoft Entra ID
+
+1. Trong ứng dụng doanh nghiệp của bạn, mở **Provisioning** và đặt chế độ thành **Automatic**.
+2. Nhập base URL vào **Tenant URL** và token vào **Secret Token**.
+3. Gán người dùng và nhóm, rồi bắt đầu provisioning.
+
+### Nhà cung cấp khác
+
+Dùng một ứng dụng SCIM 2.0 với xác thực token qua header, trỏ tới base URL. Console hỗ trợ các endpoint `/Users` và
+`/Groups`.
+
+Hãy gán một người thử nghiệm trước. **Đồng bộ thư mục** hiển thị **Đã kết nối với nhà cung cấp danh tính của bạn** sau yêu cầu
+đầu tiên.
+
+## Những gì được đồng bộ
+
+| Trong nhà cung cấp danh tính của bạn | Trong Console                                                                |
+| ----------------------------------- | ---------------------------------------------------------------------------- |
+| Gán một người                      | Được thêm với vai trò **Thành viên**. Thành viên hiện có giữ nguyên vai trò. |
+| Cập nhật tên                        | Hồ sơ được cập nhật.                                                         |
+| Bỏ gán hoặc vô hiệu hóa             | Quyền truy cập bị tạm khóa và hiển thị là **Đã vô hiệu hóa**. Các khóa API do họ tạo bị thu hồi. |
+| Gán lại                             | Quyền truy cập được khôi phục. Các khóa đã thu hồi vẫn bị thu hồi.            |
+| Xóa                                 | Bị xóa khỏi không gian làm việc. Tài khoản của họ và các không gian làm việc khác không bị ảnh hưởng. |
+
+- Đồng bộ thư mục không thay đổi vai trò hay địa chỉ email.
+- Chủ sở hữu cuối cùng không thể bị vô hiệu hóa hoặc xóa.
+- Các không gian làm việc có gói đăng ký [Go](/console/go) không thể thêm thành viên qua đồng bộ thư mục.
+
+## Nhóm
+
+Đẩy các nhóm để gắn thẻ cho thành viên của chúng, ví dụ với **Push Groups** của Okta hoặc gán nhóm của Entra. Hãy gán người
+trước khi đẩy nhóm của họ.
+
+```text
+Platform Admins  →  platform-admins
+```
+
+Mỗi nhóm gắn thẻ cho thành viên của nó bằng một thẻ mang tên của nhóm đó. Tại **Cài đặt › Bảo mật › Thẻ nhóm**, bạn có thể
+đổi tên một thẻ, trỏ nhiều nhóm về cùng một thẻ, hoặc ngừng gắn thẻ cho một nhóm. Rời khỏi nhóm sẽ xóa thẻ của nhóm đó.
+
+## Xoay vòng token
+
+1. Nhấp **Token mới** và cài đặt nó trong nhà cung cấp danh tính của bạn.
+2. Chờ cho đến khi token mới hiển thị thời điểm sử dụng gần nhất.
+3. Thu hồi token cũ.
+
+Thu hồi một token sẽ chặn các cập nhật trong tương lai nhưng không thay đổi các thành viên hiện có. Xóa kết nối SSO sẽ thu hồi
+mọi token.
+
+## SSO và đồng bộ thư mục
+
+Khi một không gian làm việc đã phát hành token, SSO không còn [tự động thêm thành viên](/console/sso#automatic-membership). Thư
+mục quyết định ai thuộc về, kể cả khi token sau đó bị thu hồi.

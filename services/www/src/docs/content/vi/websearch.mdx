@@ -1,0 +1,102 @@
+---
+title: "Websearch"
+---
+
+Hỏi OpenCode về thông tin mới nhất và nó có thể tìm kiếm trên web, đọc kết quả, rồi đưa các liên kết nguồn vào câu trả lời của
+mình.
+
+```text
+Find the latest Bun release and summarize the changes.
+```
+
+Lượt tìm kiếm đầu tiên sẽ yêu cầu bạn cho phép tìm kiếm web và chọn một nhà cung cấp. OpenCode ghi nhớ lựa chọn của bạn cho
+các phiên sau.
+
+## Nhà cung cấp
+
+OpenCode tích hợp sẵn năm nhà cung cấp tìm kiếm:
+
+| Nhà cung cấp | ID           | Biến môi trường            |
+| ------------ | ------------ | --------------------------- |
+| Exa          | `exa`        | `EXA_API_KEY`               |
+| Firecrawl    | `firecrawl`  | `FIRECRAWL_API_KEY`         |
+| Parallel     | `parallel`   | `PARALLEL_API_KEY`          |
+| Tavily       | `tavily`     | `TAVILY_API_KEY`            |
+| TinyFish     | `tinyfish`   | `TINYFISH_API_KEY` (tùy chọn) |
+
+Kết nối một tài khoản từ TUI bằng `/connect`, hoặc đặt biến môi trường của nhà cung cấp trước khi khởi động OpenCode.
+
+```bash
+$ TAVILY_API_KEY=your-key opencode
+```
+
+## Chọn
+
+Đặt một nhà cung cấp trong `opencode.jsonc` để bỏ qua lời nhắc chọn.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "websearch": {
+    "provider": "tavily",
+  },
+}
+```
+
+Dùng `"random"` để tự động chọn một nhà cung cấp khả dụng. Mỗi phiên tiếp tục dùng nhà cung cấp đã chọn cho đến khi nhà cung cấp
+đó bị giới hạn tần suất.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "websearch": {
+    "provider": "random",
+  },
+}
+```
+
+## Giới hạn
+
+Khi một nhà cung cấp trả về HTTP 429, lựa chọn ngẫu nhiên sẽ thử lại lượt tìm kiếm với một nhà cung cấp khả dụng khác. Nhà cung
+cấp bị giới hạn tần suất sẽ chờ trong khoảng thời gian `Retry-After` của nó, hoặc 60 giây khi phản hồi không chứa khoảng thời
+gian hợp lệ.
+
+```text
+Exa returns HTTP 429
+→ Exa enters cooldown
+→ OpenCode retries with another provider
+```
+
+Nếu mọi nhà cung cấp đều đang trong thời gian chờ, lượt tìm kiếm sẽ thất bại ngay lập tức. Việc chuyển một phiên hoặc khởi động
+lại server của nó sẽ xóa nhà cung cấp đã ghi nhớ; thời gian chờ được dùng chung cho các phiên trong cùng không gian làm việc.
+
+## Quyền
+
+Tìm kiếm web dùng hành động quyền `websearch` và truy vấn tìm kiếm làm tài nguyên. Hãy hỏi trước với các lượt tìm kiếm chưa được
+cho phép tường minh.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permissions": [
+    {
+      "action": "websearch",
+      "resource": "*",
+      "effect": "ask",
+    },
+  ],
+}
+```
+
+Xem [Quyền](/permissions) để biết thứ tự và cách khớp của các quy tắc.
+
+## Tắt
+
+Đặt `websearch` thành `false` để loại công cụ tìm kiếm web khỏi các yêu cầu của mô hình.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "websearch": false,
+}
+```

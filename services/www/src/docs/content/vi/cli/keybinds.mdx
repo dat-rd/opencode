@@ -1,0 +1,391 @@
+---
+title: "Phím tắt"
+---
+
+Tùy chỉnh các phím tắt trong `cli.json`:
+
+```json title="cli.json"
+{
+  "keybinds": {
+    "leader": "ctrl+space",
+    "command.palette.show": "ctrl+k",
+    "app.exit": ["ctrl+c", "ctrl+d"],
+    "app.debug": false
+  },
+  "leader": {
+    "timeout": 1500
+  }
+}
+```
+
+Dùng một chuỗi cho một phím:
+
+```json
+{
+  "keybinds": {
+    "command.palette.show": "ctrl+k"
+  }
+}
+```
+
+Phân tách các phương án bằng dấu phẩy:
+
+```json
+{
+  "keybinds": {
+    "app.exit": "ctrl+c,ctrl+d"
+  }
+}
+```
+
+Tắt một phím tắt bằng `"none"` hoặc `false`:
+
+```json
+{
+  "keybinds": {
+    "app.debug": "none",
+    "help.show": false
+  }
+}
+```
+
+Dùng một đối tượng để định nghĩa hành vi của sự kiện:
+
+```json
+{
+  "keybinds": {
+    "prompt.paste": {
+      "key": "ctrl+v",
+      "preventDefault": false
+    }
+  }
+}
+```
+
+`leader` mặc định là `ctrl+x`. `<leader>` trong một phím tắt khác chỉ tới phím đó.
+
+```json
+{
+  "keybinds": {
+    "leader": "ctrl+space",
+    "model.list": "<leader>m"
+  },
+  "leader": {
+    "timeout": 2000
+  }
+}
+```
+
+Các ID lệnh không hợp lệ sẽ bị từ chối.
+
+## Ứng dụng
+
+| ID                         | Mặc định                  | Mô tả                               |
+| -------------------------- | ------------------------- | ----------------------------------- |
+| `leader`                   | `ctrl+x`                  | Phím leader cho các tổ hợp phím tắt |
+| `app.exit`                 | `ctrl+c,ctrl+d,<leader>q` | Thoát ứng dụng                      |
+| `app.debug`                | `none`                    | Bật/tắt bảng debug                  |
+| `app.console`              | `none`                    | Bật/tắt console                     |
+| `app.scrap`                | `none`                    | Mở màn hình scrap                   |
+| `app.toggle.animations`    | `none`                    | Bật/tắt hiệu ứng chuyển động        |
+| `app.toggle.file_context`  | `none`                    | Bật/tắt ngữ cảnh tệp                |
+| `app.toggle.diffwrap`      | `none`                    | Bật/tắt xuống dòng diff             |
+| `app.toggle.paste_summary` | `none`                    | Bật/tắt tóm tắt nội dung dán        |
+| `command.palette.show`     | `ctrl+p`                  | Liệt kê các lệnh khả dụng           |
+| `help.show`                | `none`                    | Mở hộp thoại trợ giúp               |
+| `docs.open`                | `none`                    | Mở tài liệu                         |
+| `opencode.settings`        | `none`                    | Mở cài đặt                          |
+| `server.pair`              | `none`                    | Ghép nối thiết bị                   |
+| `service.restart`          | `none`                    | Khởi động lại dịch vụ               |
+
+## Mini
+
+Lệnh `app.clear` chỉ hoạt động trong [`opencode mini`](/cli). Nhấn `ctrl+l` để xóa màn hình đang hiển thị và vẽ lại lời nhắc. Terminal vẫn giữ lịch sử cuộn.
+
+```json title="cli.json"
+{
+  "keybinds": {
+    "app.clear": "ctrl+l"
+  }
+}
+```
+
+| ID          | Mặc định | Mô tả        |
+| ----------- | -------- | ------------ |
+| `app.clear` | `ctrl+l` | Xóa màn hình |
+
+## Trình xem diff
+
+Nhấn `d` (`diff.switch_source`) để chọn **Tất cả**, **Đã commit**, **Chưa commit** hoặc **Lượt cuối** (bên trong một phiên), hoặc chọn **Gốc** để đổi nhánh so sánh. Lựa chọn được ghi nhớ cho tới khi TUI thoát ra. Đặt phạm vi ban đầu bằng [`diffs.source` trong `cli.json`](/cli/config#diffs).
+
+Các phím cuộn, chuyển trang và về đầu/cuối luôn điều khiển diff. Không có phím chuyển tiêu điểm bàn phím: nhấp vào tệp để mở, nhấp vào thư mục để mở rộng hoặc thu gọn, và dùng con lăn chuột để cuộn cây tệp.
+
+Dùng `n` / `p` hoặc `alt+down` / `alt+up` (Option trên macOS) để chuyển giữa các tệp. Bên trong trình xem diff, các phím tắt Alt điều hướng giữa các tệp chứ không phải các tab phiên.
+
+Nhấn `m` để đánh dấu một tệp là đã xem xét và thu gọn phần thân patch của nó. Ở chế độ xem tất cả tệp, nhấn `m` lần nữa để bỏ đánh dấu và mở lại patch. Chế độ xem một tệp tự động chuyển sang tệp tiếp theo khi đánh dấu đã xem xét, nhưng dừng ở tệp cuối cùng thay vì quay vòng. Bỏ đánh dấu một tệp không bao giờ chuyển tệp.
+
+Nhấp chuột phải vào một tệp trong thanh bên hoặc vào tiêu đề diff của nó để chọn **Đánh dấu hoàn thành** (hoặc **Đánh dấu chưa hoàn thành**). Điều này thay đổi cùng trạng thái đã xem xét như `m`. Đánh dấu hoàn thành một tệp khác từ menu của nó sẽ không chọn tệp đó cũng không chuyển khỏi tệp đang đọc.
+
+Các phương án có phím Shift của `diff.help` hỗ trợ những terminal báo cáo phím bổ trợ Shift khi bạn nhấn `?`.
+
+| ID                      | Mặc định            | Mô tả                                               |
+| ----------------------- | ------------------- | --------------------------------------------------- |
+| `diff.open`             | `none`              | Mở trình xem diff                                   |
+| `diff.close`            | `escape,q`          | Đóng trình xem diff                                 |
+| `diff.down`             | `j,down`            | Di chuyển trình xem diff xuống                      |
+| `diff.up`               | `k,up`              | Di chuyển trình xem diff lên                        |
+| `diff.page.down`        | `pagedown,ctrl+f`   | Chuyển trang trình xem diff xuống                   |
+| `diff.page.up`          | `pageup,ctrl+b`     | Chuyển trang trình xem diff lên                     |
+| `diff.half_page.down`   | `ctrl+d`            | Cuộn trình xem diff xuống nửa trang                 |
+| `diff.half_page.up`     | `ctrl+u`            | Cuộn trình xem diff lên nửa trang                   |
+| `diff.first`            | `gg,home`           | Đến đầu diff                                        |
+| `diff.last`             | `shift+g,end`       | Đến cuối diff                                       |
+| `diff.next_hunk`        | `]`                 | Nhảy tới hunk diff tiếp theo                        |
+| `diff.previous_hunk`    | `[`                 | Nhảy tới hunk diff trước đó                         |
+| `diff.next_file`        | `n,alt+down`        | Nhảy tới tệp diff tiếp theo                         |
+| `diff.previous_file`    | `p,alt+up`          | Nhảy tới tệp diff trước đó                          |
+| `diff.toggle_file_tree` | `b`                 | Bật/tắt cây tệp trong trình xem diff                |
+| `diff.single_patch`     | `s`                 | Bật/tắt chế độ xem một patch                        |
+| `diff.switch_source`    | `d`                 | Chọn phạm vi xem xét diff                           |
+| `diff.toggle_view`      | `v`                 | Chuyển chế độ tách hoặc hợp nhất của trình xem diff |
+| `diff.mark_reviewed`    | `m`                 | Bật/tắt đánh dấu đã xem xét cho tệp diff đang chọn  |
+| `diff.help`             | `?,shift+?,shift+/` | Hiện thêm phím tắt của trình xem diff               |
+
+Các mục cấu hình `diff.toggle`, `diff.expand`, `diff.expand_all`, `diff.collapse` và `diff.switch_focus` đã bị loại bỏ vẫn được chấp nhận, nhưng không còn đăng ký phím tắt nào.
+
+## Hiển thị và điều hướng
+
+| ID                         | Mặc định    | Mô tả                                        |
+| -------------------------- | ----------- | -------------------------------------------- |
+| `prompt.editor`            | `<leader>e` | Mở trình chỉnh sửa bên ngoài                 |
+| `theme.switch`             | `none`      | Liệt kê các giao diện khả dụng               |
+| `theme.switch_mode`        | `none`      | Chuyển đổi giữa chế độ giao diện sáng và tối |
+| `theme.mode.lock`          | `none`      | Khóa hoặc mở khóa chế độ giao diện           |
+| `session.sidebar.toggle`   | `<leader>b` | Bật/tắt thanh bên                            |
+| `terminal.toggle`          | `<leader>t` | Bật/tắt khung terminal                       |
+| `session.toggle.scrollbar` | `none`      | Bật/tắt thanh cuộn của phiên                 |
+| `opencode.status`          | `<leader>s` | Xem trạng thái                               |
+| `opencode.debug`           | `none`      | Xem thông tin debug                          |
+
+## Phiên
+
+| ID                                    | Mặc định                | Mô tả                                           |
+| ------------------------------------- | ----------------------- | ----------------------------------------------- |
+| `session.export`                      | `<leader>x`             | Xuất phiên ra trình chỉnh sửa                   |
+| `session.copy`                        | `none`                  | Sao chép bản ghi phiên                          |
+| `session.move`                        | `none`                  | Di chuyển phiên                                 |
+| `session.new`                         | `<leader>n`             | Tạo phiên mới                                   |
+| `session.list`                        | `<leader>l`             | Liệt kê tất cả phiên                            |
+| `open.menu`                           | `ctrl+o`                | Mở các phiên và dự án gần đây                   |
+| `session.tab.next`                    | `ctrl+tab,alt+down`     | Chuyển tới tab phiên đang mở kế tiếp            |
+| `session.tab.previous`                | `ctrl+shift+tab,alt+up` | Chuyển tới tab phiên đang mở trước đó           |
+| `session.tab.history.back`            | `none`                  | Quay lại trong lịch sử tab phiên                |
+| `session.tab.history.forward`         | `ctrl+i`                | Tiến tới trong lịch sử tab phiên                |
+| `session.tab.next_unread`             | `alt+shift+down`        | Chuyển tới tab phiên chưa đọc kế tiếp           |
+| `session.tab.previous_unread`         | `alt+shift+up`          | Chuyển tới tab phiên chưa đọc trước đó          |
+| `session.tab.close`                   | `<leader>w`             | Đóng tab phiên hiện tại                         |
+| `session.tab.reopen`                  | `ctrl+shift+t`          | Mở lại tab phiên đã đóng gần nhất               |
+| `session.timeline`                    | `<leader>g`             | Hiện dòng thời gian của phiên                   |
+| `session.fork`                        | `none`                  | Phân nhánh phiên từ một tin nhắn                |
+| `session.rename`                      | `ctrl+r`                | Đổi tên phiên                                   |
+| `session.delete`                      | `ctrl+d`                | Xóa phiên                                       |
+| `session.interrupt`                   | `escape`                | Ngắt phiên hiện tại                             |
+| `session.background`                  | `ctrl+b`                | Chuyển các công cụ phiên chặn sang nền          |
+| `session.compact`                     | `<leader>c`             | Nén phiên                                       |
+| `session.aside`                       | `none`                  | Đặt một câu hỏi phụ                             |
+| `session.cd`                          | `none`                  | Đổi thư mục làm việc                            |
+| `session.queued_prompts`              | `<leader>q`             | Quản lý các lời nhắc trong hàng đợi             |
+| `queued_prompt.undo`                  | `ctrl+u`                | Hoàn tác lời nhắc trong hàng đợi                |
+| `queued_prompt.delete`                | `ctrl+d`                | Xóa lời nhắc trong hàng đợi                     |
+| `session.toggle.exploration_grouping` | `none`                  | Bật/tắt gom nhóm các lệnh gọi công cụ liên quan |
+| `session.child.first`                 | `down`                  | Bật/tắt bộ chọn tác nhân phụ                    |
+| `session.child.next`                  | `right`                 | Tới phiên con kế tiếp                           |
+| `session.child.previous`              | `left`                  | Tới phiên con trước đó                          |
+| `session.parent`                      | `up`                    | Tới phiên cha                                   |
+| `session.pin.toggle`                  | `ctrl+f`                | Ghim hoặc bỏ ghim phiên trong danh sách phiên   |
+| `session.quick_switch.1`              | `<leader>1`             | Chuyển tới phiên ở ô nhanh 1                    |
+| `session.quick_switch.2`              | `<leader>2`             | Chuyển tới phiên ở ô nhanh 2                    |
+| `session.quick_switch.3`              | `<leader>3`             | Chuyển tới phiên ở ô nhanh 3                    |
+| `session.quick_switch.4`              | `<leader>4`             | Chuyển tới phiên ở ô nhanh 4                    |
+| `session.quick_switch.5`              | `<leader>5`             | Chuyển tới phiên ở ô nhanh 5                    |
+| `session.quick_switch.6`              | `<leader>6`             | Chuyển tới phiên ở ô nhanh 6                    |
+| `session.quick_switch.7`              | `<leader>7`             | Chuyển tới phiên ở ô nhanh 7                    |
+| `session.quick_switch.8`              | `<leader>8`             | Chuyển tới phiên ở ô nhanh 8                    |
+| `session.quick_switch.9`              | `<leader>9`             | Chuyển tới phiên ở ô nhanh 9                    |
+| `session.tab.select.1`                | `<leader>1,ctrl+1`      | Chuyển tới tab phiên 1                          |
+| `session.tab.select.2`                | `<leader>2,ctrl+2`      | Chuyển tới tab phiên 2                          |
+| `session.tab.select.3`                | `<leader>3,ctrl+3`      | Chuyển tới tab phiên 3                          |
+| `session.tab.select.4`                | `<leader>4,ctrl+4`      | Chuyển tới tab phiên 4                          |
+| `session.tab.select.5`                | `<leader>5,ctrl+5`      | Chuyển tới tab phiên 5                          |
+| `session.tab.select.6`                | `<leader>6,ctrl+6`      | Chuyển tới tab phiên 6                          |
+| `session.tab.select.7`                | `<leader>7,ctrl+7`      | Chuyển tới tab phiên 7                          |
+| `session.tab.select.8`                | `<leader>8,ctrl+8`      | Chuyển tới tab phiên 8                          |
+| `session.tab.select.9`                | `<leader>9,ctrl+9`      | Chuyển tới tab phiên 9                          |
+| `session.tab.select.10`               | `<leader>0,ctrl+0`      | Chuyển tới tab phiên 10                         |
+
+## Mô hình và tác nhân
+
+| ID                             | Mặc định    | Mô tả                                          |
+| ------------------------------ | ----------- | ---------------------------------------------- |
+| `stash.delete`                 | `ctrl+d`    | Xóa mục stash                                  |
+| `model.dialog.provider`        | `ctrl+a`    | Mở danh sách nhà cung cấp từ hộp thoại mô hình |
+| `model.dialog.favorite`        | `ctrl+f`    | Bật/tắt trạng thái yêu thích của mô hình       |
+| `model.list`                   | `<leader>m` | Liệt kê các mô hình khả dụng                   |
+| `model.cycle_recent`           | `f2`        | Mô hình dùng gần đây kế tiếp                   |
+| `model.cycle_recent_reverse`   | `shift+f2`  | Mô hình dùng gần đây trước đó                  |
+| `model.cycle_favorite`         | `none`      | Mô hình yêu thích kế tiếp                      |
+| `model.cycle_favorite_reverse` | `none`      | Mô hình yêu thích trước đó                     |
+| `mcp.list`                     | `none`      | Liệt kê các MCP server                         |
+| `provider.connect`             | `none`      | Kết nối tích hợp                               |
+| `agent.list`                   | `<leader>a` | Liệt kê các tác nhân                           |
+| `agent.cycle`                  | `shift+tab` | Tác nhân kế tiếp                               |
+| `agent.cycle.reverse`          | `none`      | Tác nhân trước đó                              |
+| `variant.cycle`                | `ctrl+t`    | Chuyển qua lại các biến thể của mô hình        |
+| `variant.list`                 | `none`      | Liệt kê các biến thể của mô hình               |
+
+## Điều hướng trong phiên
+
+| ID                              | Mặc định               | Mô tả                             |
+| ------------------------------- | ---------------------- | --------------------------------- |
+| `session.page.up`               | `pageup,ctrl+alt+b`    | Cuộn tin nhắn lên một trang       |
+| `session.page.down`             | `pagedown,ctrl+alt+f`  | Cuộn tin nhắn xuống một trang     |
+| `session.line.up`               | `ctrl+alt+y`           | Cuộn tin nhắn lên một dòng        |
+| `session.line.down`             | `ctrl+alt+e`           | Cuộn tin nhắn xuống một dòng      |
+| `session.half.page.up`          | `ctrl+alt+u`           | Cuộn tin nhắn lên nửa trang       |
+| `session.half.page.down`        | `ctrl+alt+d`           | Cuộn tin nhắn xuống nửa trang     |
+| `session.first`                 | `ctrl+g,home,alt+home` | Tới tin nhắn đầu tiên             |
+| `session.last`                  | `ctrl+alt+g,end`       | Tới tin nhắn cuối cùng            |
+| `session.message.next`          | `none`                 | Tới tin nhắn kế tiếp              |
+| `session.message.previous`      | `none`                 | Tới tin nhắn trước đó             |
+| `session.message.user.next`     | `none`                 | Tới tin nhắn người dùng kế tiếp   |
+| `session.message.user.previous` | `none`                 | Tới tin nhắn người dùng trước đó  |
+| `session.messages_last_user`    | `alt+end`              | Tới tin nhắn người dùng cuối cùng |
+| `messages.copy`                 | `<leader>y`            | Sao chép tin nhắn                 |
+| `session.undo`                  | `<leader>u`            | Hoàn tác tin nhắn                 |
+| `session.redo`                  | `<leader>r`            | Làm lại tin nhắn                  |
+| `session.toggle.thinking`       | `none`                 | Bật/tắt hiển thị khối suy nghĩ    |
+
+## Lệnh lời nhắc
+
+| ID                            | Mặc định         | Mô tả                         |
+| ----------------------------- | ---------------- | ----------------------------- |
+| `prompt.submit`               | `none`           | Gửi lời nhắc                  |
+| `prompt.queue`                | `<leader>return` | Xếp lời nhắc vào hàng đợi     |
+| `prompt.editor_context.clear` | `none`           | Xóa ngữ cảnh trình chỉnh sửa  |
+| `prompt.images.view`          | `<leader>i`      | Xem các tệp đính kèm hình ảnh |
+| `prompt.skills`               | `none`           | Mở bộ chọn kỹ năng              |
+| `prompt.stash`                | `none`           | Cất lời nhắc vào stash        |
+| `prompt.stash.pop`            | `none`           | Lấy lại lời nhắc đã stash     |
+| `prompt.stash.list`           | `none`           | Liệt kê các lời nhắc đã stash |
+
+## Chỉnh sửa nội dung nhập
+
+| ID                              | Mặc định                                                                      | Mô tả                                    |
+| ------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------- |
+| `prompt.clear`                  | `ctrl+c`                                                                      | Xóa ô nhập                               |
+| `prompt.paste`                  | `{"key":"ctrl+v","preventDefault":false}` (`ctrl+v`; `preventDefault: false`) | Dán từ clipboard                         |
+| `input.submit`                  | `return`                                                                      | Gửi nội dung nhập                        |
+| `input.newline`                 | `shift+return,ctrl+return,alt+return,ctrl+j`                                  | Chèn dòng mới trong ô nhập               |
+| `input.move.left`               | `left,ctrl+b`                                                                 | Di chuyển con trỏ sang trái trong ô nhập |
+| `input.move.right`              | `right,ctrl+f`                                                                | Di chuyển con trỏ sang phải trong ô nhập |
+| `input.move.up`                 | `up`                                                                          | Di chuyển con trỏ lên trong ô nhập       |
+| `input.move.down`               | `down`                                                                        | Di chuyển con trỏ xuống trong ô nhập     |
+| `input.select.left`             | `shift+left`                                                                  | Chọn sang trái trong ô nhập              |
+| `input.select.right`            | `shift+right`                                                                 | Chọn sang phải trong ô nhập              |
+| `input.select.up`               | `shift+up`                                                                    | Chọn lên trong ô nhập                    |
+| `input.select.down`             | `shift+down`                                                                  | Chọn xuống trong ô nhập                  |
+| `input.line.home`               | `ctrl+a`                                                                      | Tới đầu dòng trong ô nhập                |
+| `input.line.end`                | `ctrl+e`                                                                      | Tới cuối dòng trong ô nhập               |
+| `input.select.line.home`        | `ctrl+shift+a`                                                                | Chọn tới đầu dòng trong ô nhập           |
+| `input.select.line.end`         | `ctrl+shift+e`                                                                | Chọn tới cuối dòng trong ô nhập          |
+| `input.visual.line.home`        | `alt+a`                                                                       | Tới đầu dòng hiển thị trong ô nhập       |
+| `input.visual.line.end`         | `alt+e`                                                                       | Tới cuối dòng hiển thị trong ô nhập      |
+| `input.select.visual.line.home` | `alt+shift+a`                                                                 | Chọn tới đầu dòng hiển thị trong ô nhập  |
+| `input.select.visual.line.end`  | `alt+shift+e`                                                                 | Chọn tới cuối dòng hiển thị trong ô nhập |
+| `input.buffer.home`             | `none`                                                                        | Tới đầu buffer trong ô nhập              |
+| `input.buffer.end`              | `none`                                                                        | Tới cuối buffer trong ô nhập             |
+| `input.select.buffer.home`      | `shift+home`                                                                  | Chọn tới đầu buffer trong ô nhập         |
+| `input.select.buffer.end`       | `shift+end`                                                                   | Chọn tới cuối buffer trong ô nhập        |
+| `input.delete.line`             | `ctrl+shift+d`                                                                | Xóa dòng trong ô nhập                    |
+| `input.delete.to.line.end`      | `ctrl+k`                                                                      | Xóa tới cuối dòng trong ô nhập           |
+| `input.delete.to.line.start`    | `ctrl+u`                                                                      | Xóa tới đầu dòng trong ô nhập            |
+| `input.backspace`               | `backspace,shift+backspace`                                                   | Xóa lùi trong ô nhập                     |
+| `input.delete`                  | `ctrl+d,delete,shift+delete`                                                  | Xóa ký tự trong ô nhập                   |
+| `input.undo`                    | `ctrl+-,super+z`                                                              | Hoàn tác trong ô nhập                    |
+| `input.redo`                    | `ctrl+.,super+shift+z`                                                        | Làm lại trong ô nhập                     |
+| `input.word.forward`            | `alt+f,alt+right,ctrl+right`                                                  | Di chuyển tới từ tiếp theo trong ô nhập  |
+| `input.word.backward`           | `alt+b,alt+left,ctrl+left`                                                    | Di chuyển về từ trước đó trong ô nhập    |
+| `input.select.word.forward`     | `alt+shift+f,alt+shift+right`                                                 | Chọn tới từ tiếp theo trong ô nhập       |
+| `input.select.word.backward`    | `alt+shift+b,alt+shift+left`                                                  | Chọn về từ trước đó trong ô nhập         |
+| `input.delete.word.forward`     | `alt+d,alt+delete,ctrl+delete`                                                | Xóa tới từ tiếp theo trong ô nhập        |
+| `input.delete.word.backward`    | `ctrl+w,ctrl+backspace,alt+backspace`                                         | Xóa về từ trước đó trong ô nhập          |
+| `input.select.all`              | `super+a`                                                                     | Chọn tất cả trong ô nhập                 |
+| `prompt.history.previous`       | `up`                                                                          | Mục lịch sử trước đó                     |
+| `prompt.history.next`           | `down`                                                                        | Mục lịch sử kế tiếp                      |
+
+## Composer
+
+| ID                            | Mặc định | Mô tả                 |
+| ----------------------------- | -------- | --------------------- |
+| `composer.subagent.up`        | `up`     | Tác nhân phụ trước đó |
+| `composer.subagent.down`      | `down`   | Tác nhân phụ kế tiếp  |
+| `composer.subagent.select`    | `return` | Tới tác nhân phụ      |
+| `composer.subagent.interrupt` | `ctrl+d` | Ngắt tác nhân phụ     |
+| `composer.shell.up`           | `up`     | Shell trước đó        |
+| `composer.shell.down`         | `down`   | Shell kế tiếp         |
+| `composer.shell.select`       | `return` | Xem kết quả của shell |
+| `composer.shell.kill`         | `ctrl+d` | Dừng lệnh shell       |
+
+Chọn một lệnh đang chạy trong tab **Shell** và nhấn **Enter**, hoặc nhấp vào lệnh đó, để xem stdout và stderr đã thu thập. Dùng **↑/↓**, **Page Up/Down** hoặc **Home** để cuộn, **End** để theo dõi kết quả mới, và **Esc** để quay lại mà không dừng lệnh. Trình xem hiển thị kết quả gần đây và vẫn mở sau khi lệnh kết thúc; kết quả được chuyển hướng tới một tệp sẽ không có trong đó.
+
+## Hộp thoại và tự động hoàn thành
+
+| ID                             | Mặc định      | Mô tả                                                   |
+| ------------------------------ | ------------- | ------------------------------------------------------- |
+| `dialog.select.prev`           | `up,ctrl+p`   | Tới mục hộp thoại trước đó                              |
+| `dialog.select.next`           | `down,ctrl+n` | Tới mục hộp thoại kế tiếp                               |
+| `dialog.select.page_up`        | `pageup`      | Lên một trang trong hộp thoại                           |
+| `dialog.select.page_down`      | `pagedown`    | Xuống một trang trong hộp thoại                         |
+| `dialog.select.home`           | `home`        | Tới mục hộp thoại đầu tiên                              |
+| `dialog.select.end`            | `end`         | Tới mục hộp thoại cuối cùng                             |
+| `dialog.select.submit`         | `return`      | Gửi mục hộp thoại đang chọn                             |
+| `dialog.prompt.submit`         | `return`      | Gửi lời nhắc trong hộp thoại                            |
+| `dialog.worktree.generate`     | `tab`         | Tạo tên worktree                                        |
+| `dialog.move_session.new`      | `ctrl+a`      | Worktree mới                                            |
+| `dialog.move_session.move`     | `ctrl+m`      | Di chuyển phiên sang worktree                           |
+| `dialog.move_session.delete`   | `ctrl+d`      | Xóa worktree                                            |
+| `dialog.move_session.refresh`  | `ctrl+r`      | Làm mới danh sách worktree                              |
+| `prompt.autocomplete.prev`     | `up,ctrl+p`   | Tới mục tự động hoàn thành trước đó                     |
+| `prompt.autocomplete.next`     | `down,ctrl+n` | Tới mục tự động hoàn thành kế tiếp                      |
+| `prompt.autocomplete.hide`     | `escape`      | Ẩn tự động hoàn thành                                   |
+| `prompt.autocomplete.select`   | `return`      | Chọn mục tự động hoàn thành                             |
+| `prompt.autocomplete.complete` | `tab`         | Hoàn thành mục tự động hoàn thành                       |
+| `permission.prompt.fullscreen` | `ctrl+f`      | Bật/tắt toàn màn hình cho lời nhắc quyền                |
+| `plugins.toggle`               | `return`      | Bật/tắt tiện ích mở rộng                                |
+| `dialog.mcp.toggle`            | `space`       | Bật/tắt MCP server                                      |
+| `dialog.plugins.update`        | `ctrl+u`      | Cập nhật tiện ích mở rộng từ hộp thoại tiện ích mở rộng |
+| `dialog.plugins.check`         | `ctrl+r`      | Kiểm tra cập nhật tiện ích mở rộng                      |
+
+## Terminal và tiện ích mở rộng
+
+| ID                      | Mặc định | Mô tả                                 |
+| ----------------------- | -------- | ------------------------------------- |
+| `terminal.suspend`      | `ctrl+z` | Tạm dừng terminal                     |
+| `terminal.title.toggle` | `none`   | Bật/tắt tiêu đề terminal              |
+| `plugins.list`          | `none`   | Mở hộp thoại quản lý tiện ích mở rộng |
+
+## Which-Key
+
+| ID                         | Mặc định                    | Mô tả                                         |
+| -------------------------- | --------------------------- | --------------------------------------------- |
+| `which-key.toggle`         | `ctrl+alt+k`                | Bật/tắt bảng which-key                        |
+| `which-key.layout.toggle`  | `ctrl+alt+shift+k`          | Đổi bố cục which-key                          |
+| `which-key.pending.toggle` | `ctrl+alt+shift+p`          | Bật/tắt xem trước phím đang chờ của which-key |
+| `which-key.group.previous` | `ctrl+alt+left,ctrl+alt+[`  | Nhóm which-key trước đó                       |
+| `which-key.group.next`     | `ctrl+alt+right,ctrl+alt+]` | Nhóm which-key kế tiếp                        |
+| `which-key.scroll.up`      | `ctrl+alt+up,ctrl+alt+p`    | Cuộn which-key lên                            |
+| `which-key.scroll.down`    | `ctrl+alt+down,ctrl+alt+n`  | Cuộn which-key xuống                          |
+| `which-key.page.up`        | `ctrl+alt+pageup`           | Chuyển trang which-key lên                    |
+| `which-key.page.down`      | `ctrl+alt+pagedown`         | Chuyển trang which-key xuống                  |
+| `which-key.home`           | `ctrl+alt+home`             | Nhảy tới phím tắt which-key đầu tiên          |
+| `which-key.end`            | `ctrl+alt+end`              | Nhảy tới phím tắt which-key cuối cùng         |

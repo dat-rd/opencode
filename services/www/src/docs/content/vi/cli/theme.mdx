@@ -1,0 +1,246 @@
+---
+title: "Giao diện"
+---
+
+OpenCode đi kèm nhiều giao diện tích hợp sẵn cho chế độ sáng và tối. Hãy chọn một giao diện trong cài đặt, hoặc tự pha trộn màu của riêng bạn.
+
+## Chọn một giao diện
+
+Nhấn `Ctrl+P`, chọn **Open settings**, rồi mở **Theme**. Giao diện mặc định là `opencode`.
+
+Bạn cũng có thể đặt chúng trong [cài đặt CLI](/cli/config) toàn cục của mình:
+
+```json title="~/.config/opencode/cli.json"
+{
+  "$schema": "https://opencode.ai/v2/cli.json",
+  "theme": {
+    "name": "tokyonight",
+    "mode": "dark"
+  }
+}
+```
+
+Chạy `/themes` để đổi giao diện mà không cần mở cài đặt.
+
+## Màu hệ thống
+
+Khi OpenCode đọc được bảng màu của terminal, bộ chọn giao diện sẽ có thêm giao diện `system`. Nó lấy màu từ màu chữ, màu nền và bảng ANSI của terminal.
+
+Tên giao diện `system` chọn các màu lấy từ terminal. Chế độ `system` theo giao diện sáng hay tối của terminal.
+
+## Chế độ
+
+Dùng `system` để theo giao diện của terminal, hoặc khóa giao diện ở chế độ sáng hoặc tối:
+
+| Chế độ   | Hành vi                                                  |
+| -------- | -------------------------------------------------------- |
+| `system` | Theo giao diện sáng hoặc tối mà terminal phát hiện được. |
+| `dark`   | Luôn dùng màu tối của giao diện.                         |
+| `light`  | Luôn dùng màu sáng của giao diện.                        |
+
+Trường này tương ứng với trường `mode` bên trong `theme` trong cấu hình CLI của bạn. Nếu một giao diện tùy chỉnh chỉ cung cấp một chế độ, OpenCode sẽ dùng chế độ đó khi được yêu cầu chế độ kia.
+
+## Thêm một giao diện
+
+Để thêm một giao diện bạn đã tải về hoặc nhận từ người khác, hãy sao chép tệp JSON của nó vào thư mục giao diện toàn cục:
+
+```bash
+cp theme.json ~/.config/opencode/themes/
+```
+
+Bạn cũng có thể đặt giao diện trong thư mục `.opencode/themes` của một dự án để chỉ dùng được trong dự án đó.
+
+Tên tệp trở thành tên giao diện. Ví dụ, `my-theme.json` sẽ hiện thành `my-theme`. Hãy khởi động lại OpenCode sau khi thêm tệp, rồi chạy `/themes` để chọn nó.
+
+OpenCode chỉ đọc các tệp `.json`. Một giao diện nằm gần thư mục hiện tại hơn sẽ thay thế giao diện toàn cục hoặc giao diện ở thư mục cha có cùng tên.
+
+## Dùng giao diện trong tiện ích mở rộng
+
+[Tiện ích mở rộng CLI](/build/plugins/cli) đọc các màu đã phân giải qua `context.theme` và chế độ đang hoạt động qua `context.themeMode`. Hãy dùng các token ngữ nghĩa để tiện ích mở rộng của bạn theo giao diện đã chọn:
+
+```tsx title="Inside a CLI plugin component"
+import { usePlugin } from "@opencode/plugin/tui"
+
+function Status() {
+  const context = usePlugin()
+  return <text fg={context.theme.text.base}>Ready</text>
+}
+```
+
+API tiện ích mở rộng CLI công khai không đăng ký giao diện. Hãy thêm các định nghĩa giao diện tùy chỉnh bằng các tệp JSON trong những thư mục ở trên.
+
+## Tạo một giao diện
+
+Dùng [Theme Tool](https://opencode.ai/theme/) của chúng tôi để tạo hoặc chỉnh sửa giao diện. Công cụ này giúp bạn dễ dàng hiểu cấu trúc, thay đổi nó và định nghĩa màu tùy chỉnh. Phần giải thích dưới đây mang tính tham khảo.
+
+Một giao diện tách các token ngữ nghĩa dùng chung khỏi các bảng màu riêng theo từng chế độ:
+
+| Phần            | Mục đích                                                            |
+| --------------- | ------------------------------------------------------------------- |
+| `base`          | Cây token đầy đủ được mọi chế độ dùng chung.                        |
+| `light`, `dark` | Một bảng màu hue đầy đủ và các token ghi đè tùy chọn cho chế độ đó. |
+
+Mọi giao diện đều cung cấp một `base` đầy đủ và định nghĩa ít nhất một trong `light` hoặc `dark`. Các chế độ kế thừa từ `base` của tệp; chúng không kế thừa từ giao diện tích hợp sẵn của OpenCode hay từ lẫn nhau.
+
+Các ví dụ dưới đây chỉ trình bày những phần liên quan tới từng khái niệm. Hãy dùng trình chỉnh sửa giao diện để tạo một tệp đầy đủ trước khi tùy chỉnh.
+
+### Cấu trúc
+
+Đặt các màu được cả hai chế độ dùng vào `base`, rồi ghi đè chúng bên trong `light` hoặc `dark` khi cần:
+
+```json title="theme.json (excerpt)"
+{
+  "$schema": "https://opencode.ai/theme.json",
+  "base": {
+    "text": {
+      "base": "$hue.neutral.200",
+      "muted": "$hue.neutral.400"
+    }
+  },
+  "light": {
+    "hue": {}
+  },
+  "dark": {
+    "hue": {},
+    "text": {
+      "muted": "$hue.neutral.300"
+    }
+  }
+}
+```
+
+`base` đầy đủ cung cấp mọi token ngữ nghĩa. Mỗi chế độ cung cấp mọi hue bắt buộc và có thể ghi đè bất kỳ phần nào của cây token cơ sở.
+
+### Màu và tham chiếu
+
+Một màu có thể là một giá trị hex, `"transparent"`, hoặc một tham chiếu tới một màu khác của giao diện:
+
+```json title="Inside base or a mode"
+{
+  "text": {
+    "base": "#eeeeee",
+    "muted": "$hue.neutral.400"
+  },
+  "border": {
+    "base": "$text.muted"
+  }
+}
+```
+
+### Hue
+
+Hue là các thang màu chín bước. Mỗi chế độ định nghĩa tám hue cơ sở và ba bí danh:
+
+| Loại  | Giá trị                                                              |
+| ----- | -------------------------------------------------------------------- |
+| Base  | `gray`, `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple` |
+| Alias | `accent`, `interactive`, `neutral`                                   |
+| Step  | `100`, `200`, `300`, `400`, `500`, `600`, `700`, `800`, `900`        |
+
+Định nghĩa đủ cả chín bước cho một hue cơ sở, hoặc đặt một hue làm bí danh của một hue khác:
+
+```json title="Inside light or dark"
+{
+  "hue": {
+    "purple": {
+      "100": "#b38ff4",
+      "200": "#9d7cd8",
+      "300": "#8869bd",
+      "400": "#7357a2",
+      "500": "#5f4688",
+      "600": "#4b356f",
+      "700": "#392557",
+      "800": "#271640",
+      "900": "#17072b"
+    },
+    "accent": "$hue.purple"
+  }
+}
+```
+
+Các bước hue đi theo hướng tương phản của chế độ. Giao diện sáng đi từ tối ở `100` sang sáng ở `900`; giao diện tối đi từ sáng ở `100` sang tối ở `900`.
+
+Mảng `categorical` trong `base` đặt các hue có thứ tự dùng để phân biệt các tác nhân và các mục lặp lại khác:
+
+```json title="Inside base"
+{
+  "categorical": ["accent", "purple", "green", "blue"]
+}
+```
+
+### Token ngữ nghĩa
+
+Token ngữ nghĩa gán màu cho các vai trò trong giao diện người dùng. Các thành phần dùng những vai trò này thay vì tự chọn màu trực tiếp.
+
+| Nhóm                  | Mục đích                                                                    |
+| --------------------- | --------------------------------------------------------------------------- |
+| `text`                | Văn bản cơ sở, mờ nhạt, hành động, trường biểu mẫu, trạng thái và phản hồi. |
+| `background`          | Nền cơ sở, bề mặt nâng cao, hành động, trường biểu mẫu và nền phản hồi.     |
+| `border`, `scrollbar` | Màu viền và thanh cuộn.                                                     |
+| `diff`                | Màu dòng thêm, dòng xóa, dòng ngữ cảnh, dòng làm nổi bật và số dòng.        |
+| `syntax`              | Tô sáng mã nguồn.                                                           |
+| `markdown`            | Các phần tử Markdown.                                                       |
+
+Ví dụ, `text.muted` điều khiển văn bản thứ cấp, trong khi `background.raised` định nghĩa các bề mặt được nâng cao dần:
+
+```json title="Inside base"
+{
+  "text": {
+    "base": "$hue.neutral.200",
+    "muted": "$hue.neutral.400"
+  },
+  "background": {
+    "base": "$hue.neutral.800",
+    "raised": {
+      "base": "$hue.neutral.700",
+      "high": "$hue.neutral.600",
+      "max": "$hue.neutral.500"
+    }
+  }
+}
+```
+
+Các khóa cú pháp là `comment`, `keyword`, `function`, `variable`, `string`, `number`, `type`, `operator` và `punctuation`.
+
+Các khóa Markdown là `text`, `heading`, `link`, `linkText`, `code`, `blockQuote`, `emphasis`, `strong`, `horizontalRule`, `listItem`, `listEnumeration`, `image`, `imageText` và `codeBlock`.
+
+### Hành động và trạng thái
+
+Hành động có các biến thể `primary`, `secondary` và `destructive`. Hành động và trường biểu mẫu dùng `base` cùng các trạng thái tương tác tùy chọn:
+
+```json title="Inside base or a mode"
+{
+  "text": {
+    "action": {
+      "primary": {
+        "base": "$hue.interactive.400",
+        "$hovered": "$hue.interactive.300",
+        "$disabled": "$hue.neutral.600"
+      }
+    }
+  }
+}
+```
+
+Các khóa trạng thái là `$hovered`, `$focused`, `$pressed`, `$selected` và `$disabled`. Một trạng thái không được chỉ định sẽ dùng màu `base` của hành động hoặc trường biểu mẫu đó.
+
+### Bề mặt hộp thoại
+
+Các bảng, hộp thoại, menu và thông báo chọn độ sâu của chúng từ `background.raised`. Hộp thoại còn có thể ghi đè các token ngữ nghĩa bằng `@dialog`:
+
+```json title="Inside base or a mode"
+{
+  "@dialog": {
+    "background": {
+      "base": "$background.raised.base",
+      "action": {
+        "primary": {
+          "$hovered": "$background.raised.high"
+        }
+      }
+    }
+  }
+}
+```
+
+TUI phân giải lại các tham chiếu sau khi áp dụng `@dialog`, nên các token tham chiếu tới `$background.base` sẽ theo nền của hộp thoại. Một `base` của hành động theo ngữ cảnh trở thành giá trị dự phòng cho các trạng thái chưa chỉ định của nó; các ghi đè trạng thái tường minh vẫn thắng.

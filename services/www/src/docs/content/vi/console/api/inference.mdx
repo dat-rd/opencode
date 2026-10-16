@@ -1,0 +1,98 @@
+---
+title: "Inference API"
+description: "Gọi các mô hình tương thích OpenAI, Anthropic và Gemini qua suy luận của Console với một header xác thực."
+---
+
+Suy luận của Console phục vụ các API tương thích OpenAI, Anthropic và Gemini từ `https://opencode.ai/inference`. Hãy gửi một
+yêu cầu `POST` JSON tới endpoint khớp với họ API của mô hình.
+
+```bash
+curl -X POST "https://opencode.ai/inference/openai/v1/chat/completions" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "kimi-k2.6",
+    "messages": [{ "role": "user", "content": "Say hi" }]
+  }'
+```
+
+## Xác thực
+
+Thay `<token>` bằng một [khóa tài khoản dịch vụ](/console/api#service-accounts) được tạo trong [Console](https://opencode.ai/console). Mô hình trả
+phí cần header này; mô hình trò chuyện miễn phí có thể được gọi mà không cần.
+
+```text
+Authorization: Bearer <token>
+```
+
+## Endpoint
+
+| API                     | Đường dẫn                                                 |
+| ----------------------- | --------------------------------------------------------- |
+| OpenAI Chat Completions | `/inference/openai/v1/chat/completions`                  |
+| OpenAI Responses        | `/inference/openai/v1/responses`                         |
+| Anthropic Messages      | `/inference/anthropic/v1/messages`                       |
+| Gemini                  | `/inference/google/v1beta/models/<model>:generateContent` |
+
+Mỗi mô hình được phục vụ bởi một họ API. Xem bảng [endpoint của mô hình](/console/models#endpoints), hoặc lấy danh sách trực tiếp:
+
+```bash
+curl https://opencode.ai/inference/v1/models
+```
+
+### OpenAI Chat Completions
+
+Các mô hình mở như `kimi-k2.6`, `glm-5.1`, `minimax-m2.7` và các mô hình miễn phí dùng Chat Completions API.
+
+```bash
+curl -X POST "https://opencode.ai/inference/openai/v1/chat/completions" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "glm-5.1",
+    "messages": [{ "role": "user", "content": "Say hi" }]
+  }'
+```
+
+### OpenAI Responses
+
+Các mô hình GPT dùng Responses API.
+
+```bash
+curl -X POST "https://opencode.ai/inference/openai/v1/responses" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-5.5",
+    "input": "Say hi"
+  }'
+```
+
+### Anthropic Messages
+
+Các mô hình Claude và Qwen dùng Messages API. `max_tokens` là bắt buộc.
+
+```bash
+curl -X POST "https://opencode.ai/inference/anthropic/v1/messages" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "claude-sonnet-4-6",
+    "max_tokens": 1024,
+    "messages": [{ "role": "user", "content": "Say hi" }]
+  }'
+```
+
+### Gemini
+
+Các mô hình Gemini lấy tên mô hình và phương thức trong đường dẫn. Thay `:generateContent` bằng `:streamGenerateContent` để nhận phản
+hồi theo luồng.
+
+```bash
+curl -X POST "https://opencode.ai/inference/google/v1beta/models/gemini-3.1-pro:generateContent" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "contents": [{ "parts": [{ "text": "Say hi" }] }]
+  }'
+```

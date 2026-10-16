@@ -1,0 +1,62 @@
+---
+title: "Thành viên"
+description: "Mời mọi người vào một không gian làm việc OpenCode Console, quản lý vai trò của họ và xóa họ."
+---
+
+Chủ sở hữu và quản trị viên quản lý mọi người từ trang **Thành viên**. Mỗi hàng hiển thị vai trò của thành viên, ngày tham gia, mức sử dụng hàng tháng và giới hạn ngân sách.
+
+## Mời thành viên
+
+1. Mở **Thành viên** và nhấp **Mời thành viên**.
+2. Thêm một hoặc nhiều địa chỉ email. Phân tách chúng bằng dấu cách, dấu phẩy hoặc dấu chấm phẩy, hoặc dán một danh sách.
+3. Nhấp **Gửi lời mời**.
+
+Mỗi người nhận được một email có tiêu đề **Tham gia Acme Inc. trên OpenCode** kèm nút **Tham gia không gian làm việc**.
+
+Lời mời hết hạn sau 7 ngày. Mọi người tham gia với vai trò **Thành viên**; hãy [đổi vai trò của họ](#change-a-role) sau khi họ tham gia.
+
+<Callout>
+  Các không gian làm việc có gói đăng ký [OpenCode Go](/console/go) không thể mời thành viên. Hãy tạo một không gian làm việc riêng cho nhóm của bạn.
+</Callout>
+
+Thành viên cũng có thể tự động tham gia:
+
+- [SSO](/console/sso#automatic-membership) thêm những người thuộc các miền email đã xác minh của bạn khi họ đăng nhập lần đầu.
+- [Đồng bộ thư mục](/console/scim) thêm và xóa mọi người theo cách bạn gán họ trong nhà cung cấp danh tính của mình.
+
+## Chấp nhận lời mời
+
+Người được mời phải đăng nhập bằng đúng địa chỉ email mà lời mời được gửi đến. Có hai cách để chấp nhận:
+
+- Nhấp **Tham gia không gian làm việc** trong email mời, rồi đăng nhập hoặc tạo tài khoản.
+- Đăng nhập vào Console, mở menu không gian làm việc và nhấp **Tham gia** dưới mục **Lời mời đang chờ**.
+
+Nếu họ đang đăng nhập bằng một tài khoản khác, Console sẽ yêu cầu họ **Đăng xuất và tiếp tục** bằng email được mời.
+
+## Quản lý lời mời đang chờ
+
+Lời mời đang chờ hiển thị trong bảng Thành viên dưới dạng **Đang chờ · Hết hạn** kèm ngày, hoặc **Đã hết hạn**.
+
+| Hành động | Cách thực hiện                                                                              |
+| --------- | -------------------------------------------------------------------------------------------- |
+| Gửi lại  | **⋯ › Gửi lại lời mời**. Gửi một liên kết mới có hiệu lực 7 ngày; liên kết cũ ngừng hoạt động. |
+| Thu hồi  | **⋯ › Xóa...**. Liên kết ngừng hoạt động ngay lập tức.                                     |
+
+## Đổi vai trò
+
+Mở menu vai trò trong hàng của một thành viên rồi chọn **Thành viên**, **Quản trị viên** hoặc **Chủ sở hữu**.
+
+Bạn chỉ có thể cấp vai trò ngang hoặc thấp hơn vai trò của mình, và không gian làm việc luôn giữ ít nhất một chủ sở hữu. Xem [Vai trò](/console/workspaces#roles).
+
+## Xóa thành viên
+
+1. Nhấp **⋯ › Xóa...** trong hàng của thành viên.
+2. Xác nhận bằng **Xóa thành viên**.
+
+Quyền truy cập bị thu hồi ngay lập tức, và bạn có thể mời lại họ sau. Mức sử dụng trước đó của họ vẫn còn trong các báo cáo của không gian làm việc.
+
+Tài khoản dịch vụ và các khóa API của chúng thuộc về không gian làm việc, nên việc xóa thành viên đã tạo ra chúng không thu hồi các tài khoản đó. Hãy thu hồi khóa tại **Khóa** nếu cần. Xem [Tài khoản dịch vụ](/console/api#service-accounts).
+
+## Chi tiết thành viên
+
+Nhấp vào một thành viên để xem ngân sách hàng tháng, các mô hình và client họ dùng, biểu đồ mức sử dụng và nhật ký yêu cầu của họ. Từ đây bạn có thể đặt [ngân sách](/console/budgets#member-budgets) và xuất mức sử dụng của họ dưới dạng CSV.

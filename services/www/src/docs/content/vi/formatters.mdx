@@ -1,0 +1,203 @@
+---
+title: "Trình định dạng"
+---
+
+OpenCode có thể định dạng tệp sau khi các công cụ `write`, `edit` hoặc `patch` của nó thay
+đổi chúng. Trình định dạng bị tắt theo mặc định, vì vậy hãy bật chúng trong cấu hình của
+bạn:
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "formatter": true,
+}
+```
+
+## Bật
+
+Đặt `formatter` thành `true` để bật mọi trình định dạng tích hợp sẵn. OpenCode chỉ chạy
+một trình tích hợp sẵn khi tệp thực thi của nó và mọi yêu cầu riêng của dự án đều khả
+dụng.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "formatter": true,
+}
+```
+
+Một đối tượng cũng bật các trình tích hợp sẵn và cho phép bạn ghi đè chúng hoặc thêm
+trình định dạng tùy chỉnh. Một đối tượng rỗng giữ nguyên cài đặt trình định dạng được
+kế thừa, trong khi `true` đặt lại chúng về các trình tích hợp sẵn.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "formatter": {},
+}
+```
+
+## Tích hợp sẵn
+
+OpenCode bao gồm các định nghĩa trình định dạng sau. Phần lớn yêu cầu có lệnh được nêu
+tên; các định nghĩa có quy tắc phát hiện bổ sung sẽ liệt kê chúng bên dưới.
+
+| Trình định dạng | Phần mở rộng | Yêu cầu |
+| --- | --- | --- |
+| `gofmt` | `.go` | Lệnh `gofmt` |
+| `mix` | `.ex`, `.exs`, `.eex`, `.heex`, `.leex`, `.neex`, `.sface` | Lệnh `mix` |
+| `oxfmt` | `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, `.cts` | Phụ thuộc `oxfmt` trong `package.json` |
+| `prettier` | `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, `.cts`, `.html`, `.htm`, `.css`, `.scss`, `.sass`, `.less`, `.vue`, `.svelte`, `.json`, `.jsonc`, `.yaml`, `.yml`, `.toml`, `.xml`, `.md`, `.mdx`, `.graphql`, `.gql` | Phụ thuộc `prettier` trong `package.json` |
+| `biome` | Cùng các phần mở rộng như `prettier` ở trên | `biome.json` hoặc `biome.jsonc` và một tệp nhị phân `@biomejs/biome` đã cài đặt |
+| `zig` | `.zig`, `.zon` | Lệnh `zig` |
+| `clang-format` | `.c`, `.cc`, `.cpp`, `.cxx`, `.c++`, `.h`, `.hh`, `.hpp`, `.hxx`, `.h++`, `.ino`, `.C`, `.H` | Lệnh `clang-format` và `.clang-format` |
+| `ktlint` | `.kt`, `.kts` | Lệnh `ktlint` |
+| `ruff` | `.py`, `.pyi` | Lệnh `ruff` và một cấu hình Ruff hoặc khai báo phụ thuộc |
+| `air` | `.R` | Lệnh `air` tự nhận diện là trình định dạng R |
+| `uv` | `.py`, `.pyi` | Lệnh `uv` có hỗ trợ `uv format` |
+| `rubocop` | `.rb`, `.rake`, `.gemspec`, `.ru` | Lệnh `rubocop` |
+| `standardrb` | `.rb`, `.rake`, `.gemspec`, `.ru` | Lệnh `standardrb` |
+| `htmlbeautifier` | `.erb` | Lệnh `htmlbeautifier` |
+| `dart` | `.dart` | Lệnh `dart` |
+| `ocamlformat` | `.ml`, `.mli` | Lệnh `ocamlformat` và `.ocamlformat` |
+| `terraform` | `.tf`, `.tfvars` | Lệnh `terraform` |
+| `latexindent` | `.tex` | Lệnh `latexindent` |
+| `gleam` | `.gleam` | Lệnh `gleam` |
+| `shfmt` | `.sh`, `.bash` | Lệnh `shfmt` |
+| `nixfmt` | `.nix` | Lệnh `nixfmt` |
+| `rustfmt` | `.rs` | Lệnh `rustfmt` |
+| `pint` | `.php` | `laravel/pint` trong `composer.json` |
+| `ormolu` | `.hs` | Lệnh `ormolu` |
+| `cljfmt` | `.clj`, `.cljs`, `.cljc`, `.edn` | Lệnh `cljfmt` |
+| `dfmt` | `.d` | Lệnh `dfmt` |
+
+Ví dụ, bật các trình tích hợp sẵn cho phép OpenCode phát hiện và chạy một phụ thuộc
+Prettier cục bộ trong dự án cho các tệp khớp:
+
+```jsonc title="opencode.jsonc"
+{
+  "formatter": true,
+}
+```
+
+## Tùy chỉnh
+
+Thêm một mục được đặt tên để thay đổi một trình tích hợp sẵn hoặc định nghĩa một trình
+định dạng tùy chỉnh. Một trình định dạng tùy chỉnh cần cả `command` và `extensions` để
+chạy.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "formatter": {
+    "prettier": {
+      "environment": {
+        "NODE_ENV": "development",
+      },
+      "extensions": [".js", ".ts"],
+    },
+    "deno-markdown": {
+      "command": ["deno", "fmt", "$FILE"],
+      "extensions": [".md"],
+    },
+  },
+}
+```
+
+| Trường | Kiểu | Hành vi |
+| --- | --- | --- |
+| `disabled` | `boolean` | Loại trình định dạng được nêu tên khi là `true`. |
+| `command` | `string[]` | Thay thế lệnh tích hợp sẵn hoặc định nghĩa một lệnh tùy chỉnh. |
+| `environment` | `Record<string, string>` | Thêm biến môi trường trong khi giữ nguyên môi trường cha. |
+| `extensions` | `string[]` | Thay thế danh sách phần mở rộng tích hợp sẵn hoặc định nghĩa danh sách tùy chỉnh. Phải bao gồm dấu chấm ở đầu. |
+
+Mọi trường đều tùy chọn. Một mục tích hợp sẵn kế thừa các giá trị bị bỏ qua, trong khi một
+mục mới không có lệnh hoặc phần mở rộng thì không thể chạy.
+
+```jsonc title="opencode.jsonc"
+{
+  "formatter": {
+    "prettier": {
+      "extensions": [".md", ".mdx"],
+    },
+  },
+}
+```
+
+## Lệnh
+
+`command` là một mảng đối số, không phải một chuỗi lệnh shell. OpenCode thay `$FILE` bằng
+đường dẫn tuyệt đối của tệp và chạy lệnh từ thư mục dự án đang hoạt động.
+
+```jsonc title="opencode.jsonc"
+{
+  "formatter": {
+    "custom": {
+      "command": ["custom-fmt", "--write", "$FILE"],
+      "extensions": [".custom"],
+    },
+  },
+}
+```
+
+## So khớp
+
+OpenCode so sánh phần mở rộng cuối cùng của tệp với `extensions`. Việc so khớp phân biệt
+chữ hoa chữ thường, và các mục ghép như `.part.md` không khớp với `notes.part.md` vì
+phần mở rộng cuối cùng của nó là `.md`.
+
+```jsonc title="opencode.jsonc"
+{
+  "formatter": {
+    "markdown": {
+      "command": ["deno", "fmt", "$FILE"],
+      "extensions": [".md"],
+    },
+  },
+}
+```
+
+Khi nhiều trình định dạng khớp, OpenCode thử chúng theo thứ tự đã đăng ký và dừng sau lệnh
+thành công đầu tiên. Các trình tích hợp sẵn giữ thứ tự tích hợp sẵn của chúng; các mục tùy
+chỉnh đứng sau theo thứ tự trong đối tượng. Nếu một cái thoát ra không thành công, OpenCode
+ghi log lỗi và thử lần khớp tiếp theo.
+
+```jsonc title="opencode.jsonc"
+{
+  "formatter": {
+    "preferred": {
+      "command": ["preferred-fmt", "$FILE"],
+      "extensions": [".foo"],
+    },
+    "fallback": {
+      "command": ["fallback-fmt", "$FILE"],
+      "extensions": [".foo"],
+    },
+  },
+}
+```
+
+## Tắt
+
+Định dạng bị tắt khi không có tệp cấu hình nào đặt `formatter`. Để tắt định dạng mà một tệp
+ưu tiên thấp đã bật, hãy đặt nó thành `false`.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "formatter": false,
+}
+```
+
+Để tắt một trình tích hợp sẵn mà vẫn giữ các trình khác được bật, hãy đánh dấu mục được
+nêu tên của nó là bị tắt.
+
+```jsonc title="opencode.jsonc"
+{
+  "formatter": {
+    "prettier": {
+      "disabled": true,
+    },
+  },
+}
+```

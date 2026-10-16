@@ -1,0 +1,126 @@
+---
+title: "Web"
+description: "Chạy OpenCode trong trình duyệt."
+---
+
+OpenCode đi kèm một web ui được phục vụ từ chính server điều khiển TUI. Nó khả dụng mặc định và được bảo vệ bằng mật khẩu.
+
+## Truy cập
+
+```bash
+$ opencode pair
+
+  Open a link to connect. Links work once and expire in 5 minutes.
+
+  http://127.0.0.1:49374/auth/connect/...
+
+  █▀▀▀▀▀█ ...
+```
+
+Mở một liên kết trong trình duyệt sẽ đăng nhập nó bằng một session cookie và tải web
+ui. Quét mã QR từ app OpenCode, hoặc dán liên kết vào trường địa chỉ server của app, sẽ kết nối app theo
+cùng cách đó. Phiên kéo dài 30 ngày; đổi mật khẩu server sẽ đăng xuất mọi phiên.
+
+### Qua SSH
+
+Khi server chỉ lắng nghe trên localhost, hãy chuyển tiếp cổng của nó từ máy của bạn
+và mở liên kết được in ra ở phía máy cục bộ:
+
+```bash
+$ ssh -L 49374:127.0.0.1:49374 my-server
+```
+
+Mặc định server chỉ lắng nghe trên localhost. Cổng của nó tùy thuộc vào
+nền tảng:
+
+| Nền tảng              | Cổng mặc định |
+| --------------------- | ------------- |
+| macOS, Linux, and WSL | 49374         |
+| Windows               | 45278         |
+
+Windows dành sẵn các cổng từ 49152 trở lên. In địa chỉ hiện tại bằng
+`opencode service status`:
+
+```bash
+$ opencode service status
+http://127.0.0.1:49374
+```
+
+Bạn có thể đổi cấu hình này bằng lệnh `opencode service`.
+
+### Truy cập từ xa
+
+Để kết nối từ mọi nơi, hãy ghép nối qua một địa chỉ từ xa
+[OpenTunnel](https://github.com/anomalyco/opentunnel):
+
+```bash
+$ opencode pair --remote
+```
+
+Lần đầu bật truy cập từ xa, nó sẽ hỏi trước khi tiếp tục:
+
+```text
+▲  This will expose your OpenCode server to the internet.
+│  Traffic is end-to-end encrypted, and access requires your server password.
+│  To pair locally instead, run `opencode pair` without the --remote flag.
+│
+◆  Expose your server to the internet?
+│  ● Yes / ○ No
+```
+
+Không có terminal tương tác, lệnh sẽ thất bại trừ khi bạn truyền `--yes` để
+chấp nhận. Sau khi đã chấp nhận, các lần chạy sau bỏ qua lời nhắc, kể cả sau khi truy cập từ xa đã
+được tắt bằng `opencode service set remote false`.
+
+## Cấu hình
+
+Đặt bất kỳ tùy chọn nào bằng `opencode service set`:
+
+```bash
+# Listen on every network interface
+$ opencode service set hostname 0.0.0.0
+
+# Use a fixed port instead of the channel default
+$ opencode service set port 49374
+
+# Replace the generated password
+$ opencode service set password "a-long-secret"
+
+# Allow a web client served from another origin
+$ opencode service set cors https://app.example.com,https://other.example.com
+
+# Pass an environment variable to the server process
+$ opencode service set env OPENCODE_LOG_LEVEL DEBUG
+```
+
+Thay đổi một cài đặt sẽ dừng server nền. Để áp dụng cấu hình mới
+
+```bash
+$ opencode service start
+```
+
+## Standalone
+
+`opencode serve` chạy cùng server đó ở tiền trình thay vì thông qua dịch vụ nền
+dùng chung.
+
+```bash
+$ opencode serve --hostname 0.0.0.0 --port 4096
+server listening on http://0.0.0.0:4096
+server password <password>
+```
+
+Hãy dùng nó khi bạn muốn:
+
+- Chạy OpenCode trên một host dùng chung, luôn bật hoặc từ xa, rồi kết nối client bằng
+  `opencode --server <url>`.
+- Kiểm soát hostname, cổng và các origin CORS cho một tiến trình đơn lẻ.
+- Chạy dưới một supervisor như systemd, Docker hoặc một môi trường khác cần
+  một tiến trình chạy ở tiền trình.
+- Giữ một server riêng thay vì dịch vụ nền dùng chung.
+
+Kết nối một client tới nó bằng `--server`:
+
+```bash
+$ opencode --server http://127.0.0.1:4096
+```
