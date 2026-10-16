@@ -1,0 +1,104 @@
+---
+title: Mạng
+description: Cấu hình proxy và các cơ quan cấp chứng thư tùy chỉnh.
+---
+
+Đặt các biến proxy tiêu chuẩn và loại trừ các địa chỉ loopback. OpenCode dùng kết nối HTTP cục bộ giữa CLI và service nền của
+nó, nên việc loại trừ loopback là bắt buộc khi proxy được cấu hình trong môi trường của CLI.
+
+```bash
+export HTTP_PROXY=http://proxy.example.com:8080
+export HTTPS_PROXY=http://proxy.example.com:8080
+export NO_PROXY=localhost,127.0.0.1,::1
+
+opencode
+```
+
+`HTTP_PROXY` xử lý các đích HTTP và `HTTPS_PROXY` xử lý các đích HTTPS. Bản thân URL của proxy có thể dùng `http://` cho cả hai
+biến. `NO_PROXY` là danh sách phân tách bằng dấu phẩy gồm các máy chủ và địa chỉ kết nối trực tiếp.
+
+## Service
+
+Các biến được export từ shell chỉ ảnh hưởng đến service nền khi service đó khởi động từ chính shell đó. Hãy lưu các biến vào
+cấu hình của service được quản lý để những lần khởi động service sau dùng cùng cài đặt mạng.
+
+```bash
+opencode service set env HTTP_PROXY http://proxy.example.com:8080
+opencode service set env HTTPS_PROXY http://proxy.example.com:8080
+opencode service set env NO_PROXY localhost,127.0.0.1,::1
+opencode service start
+```
+
+Thay đổi một biến môi trường được quản lý sẽ dừng service đang chạy. `service start` khởi động lại nó với môi trường mới. Hãy giữ
+`NO_PROXY` trong shell của CLI nữa khi shell đó đặt proxy, vì các biến của service được quản lý áp dụng cho tiến trình server,
+không phải tiến trình CLI.
+
+Xóa một biến đã lưu bằng `service unset env`:
+
+```bash
+opencode service unset env HTTPS_PROXY
+```
+
+## Xác thực
+
+Với một proxy chấp nhận thông tin đăng nhập trong URL, hãy đưa tên người dùng và mật khẩu vào mọi URL proxy cần xác thực. Mã hóa
+theo phần trăm các ký tự như `@`, `:` và `/` bên trong từng thông tin đăng nhập.
+
+```bash
+export HTTPS_PROXY='http://user:p%40ssword@proxy.example.com:8080'
+```
+
+Với service nền, hãy lưu URL đầy đủ. Giá trị đó được lưu trong cấu hình riêng của service và hiển thị bởi
+`opencode service get env`, vì vậy đừng chia sẻ kết quả đó.
+
+```bash
+opencode service set env HTTPS_PROXY 'http://user:p%40ssword@proxy.example.com:8080'
+```
+
+## Chứng thư
+
+Đặt `NODE_EXTRA_CA_CERTS` trỏ tới một tệp PEM khi proxy hoặc đích dùng chứng thư được ký bởi một cơ quan cấp chứng thư riêng. Các
+cơ quan bổ sung sẽ được thêm vào kho tin cậy lúc chạy khi tiến trình khởi động.
+
+```bash
+export NODE_EXTRA_CA_CERTS=/etc/company/ca.pem
+opencode --standalone
+```
+
+Lưu đường dẫn tệp cho service nền, rồi khởi động lại nó:
+
+```bash
+opencode service set env NODE_EXTRA_CA_CERTS /etc/company/ca.pem
+opencode service start
+```
+
+## Tiền cảnh
+
+`--standalone` và `serve` dùng môi trường của chính tiến trình của chúng. `opencode service set env` không cấu hình các tiến
+trình này.
+
+```bash
+HTTP_PROXY=http://proxy.example.com:8080 \
+HTTPS_PROXY=http://proxy.example.com:8080 \
+NO_PROXY=localhost,127.0.0.1,::1 \
+opencode --standalone
+```
+
+Áp dụng cùng cách đó cho một server chạy ở tiền cảnh:
+
+```bash
+HTTPS_PROXY=http://proxy.example.com:8080 \
+NO_PROXY=localhost,127.0.0.1,::1 \
+opencode serve
+```
+
+## Kiểm tra
+
+Kiểm tra rằng CLI có thể kết nối tới service nền sau khi áp dụng cài đặt:
+
+```bash
+opencode api get /api/info
+```
+
+Một phản hồi kiểm tra sức khoẻ thành công xác nhận kết nối cục bộ từ client tới service. Hãy chạy một yêu cầu nhà cung cấp bình
+thường để kiểm tra đường proxy và đường dẫn chứng thư đi ra của service.

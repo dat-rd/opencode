@@ -1,0 +1,145 @@
+---
+title: "Effect"
+---
+
+`@opencode/client/effect` là client Effect-native cho HTTP API của OpenCode. Nó trả về Effect và Stream có kiểu, đồng
+thời giải mã phản hồi thành giá trị schema của OpenCode.
+
+```sh
+bun add @opencode/client effect
+```
+
+## Tạo client
+
+Tạo client bằng URL của server, rồi gọi các phương thức được nhóm theo tài nguyên API.
+
+```ts
+import { AbsolutePath, Location, OpenCode } from "@opencode/client/effect"
+import { Effect } from "effect"
+import { FetchHttpClient } from "effect/http"
+
+const program = Effect.gen(function* () {
+  const client = yield* OpenCode.make({ baseUrl: "http://localhost:4096" })
+  const session = yield* client.session.create({
+    location: Location.Ref.make({ directory: AbsolutePath.make("/workspace") }),
+  })
+  yield* client.session.prompt({
+    sessionID: session.id,
+    text: "Review the current changes",
+  })
+  return session
+})
+
+const session = await Effect.runPromise(program.pipe(Effect.provide(FetchHttpClient.layer)))
+```
+
+## Header và request
+
+Cấu hình header mặc định trên `HttpClient` được cung cấp. Các thao tác native dùng cơ chế huỷ thông thường của Effect để
+huỷ. Phương thức RPC còn nhận các tuỳ chọn location, header và signal riêng cho từng lần gọi.
+
+```ts
+import { HttpClient, HttpClientRequest } from "effect/http"
+
+const httpClient = yield * HttpClient.HttpClient
+const client =
+  yield *
+  OpenCode.make({ baseUrl: "https://opencode.example.com" }).pipe(
+    Effect.provideService(
+      HttpClient.HttpClient,
+      HttpClient.mapRequest(httpClient, (request) =>
+        HttpClientRequest.setHeaders(request, { authorization: `Bearer ${process.env.OPENCODE_TOKEN}` }),
+      ),
+    ),
+  )
+
+const sessions = yield * client.session.list()
+```
+
+## Stream sự kiện
+
+Các thao tác dạng stream như `event.subscribe()` và `session.log()` trả về Effect Stream.
+
+```ts
+import { Effect, Stream } from "effect"
+
+yield *
+  client.event.subscribe().pipe(Stream.runForEach((event) => Effect.logInfo("OpenCode event", { type: event.type })))
+```
+
+Stream sự kiện native và RPC dùng chung một kết nối lazy cho mỗi client. Tạo một Stream không kết nối; chỉ khi consume mới
+kết nối. Dừng một consumer không ảnh hưởng tới những consumer khác, và consumer cuối cùng rời đi sẽ đóng nguồn. EOF hoặc lỗi
+của nguồn kết thúc các đăng ký hiện tại mà không tự thử lại hay phát lại. Consumer native đến muộn nhận marker kết nối
+hiện tại trước các sự kiện trực tiếp.
+
+## RPC cho tiện ích mở rộng
+
+Dùng cùng hợp đồng dùng chung như với client Promise và tiện ích mở rộng phía server:
+
+```ts
+import { Acme } from "opencode-acme-plugin/rpc"
+
+const acme = client.rpc(Acme)
+const result = yield * acme.search({ query: "hello" }, { location: { directory: "/workspace" } })
+
+yield *
+  acme.events
+    .subscribe("updated")
+    .pipe(
+      Stream.runForEach((event) =>
+        Effect.logInfo("Plugin event", { type: event.type, location: event.location, text: event.data.text }),
+      ),
+    )
+```
+
+Đối số và kết quả của phương thức được suy luận từ hợp đồng. Đối số thứ hai tùy chọn chứa `location`, `signal` và `headers`;
+khi bỏ qua location thì dùng mặc định request thông thường. Lời gọi bị huỷ cùng với Effect đang consume nó. Map lỗi của
+phương thức được suy luận trong kênh lỗi của Effect. Lỗi đã khai báo được giải mã qua schema dữ liệu tương ứng. Subclient có
+kiểu loại bỏ lớp bọc lỗi RPC HTTP tổng quát; các kiểu `rpc.*` dành riêng xác định lỗi framework.
+
+Sự kiện RPC là các Stream có kiểu, không phải listener `on` dạng callback. Chúng nhận sự kiện của RPC từ mọi location, mỗi
+sự kiện có `location` bắt buộc và một kiểu có tiền tố thông thường như `rpc.acme.updated`. Điều này khác với handle của
+tiện ích mở rộng phía server, vốn cố định theo location của chính nó. Xem [RPC cho tiện ích mở rộng
+Effect](/build/plugins/effect/rpc) để biết định nghĩa, schema, đăng ký và ngữ nghĩa đăng ký trực tiếp.
+
+## Dịch vụ nền cục bộ
+
+Entrypoint `@opencode/client/effect/service` chỉ dành cho Node sẽ phát hiện, khởi động, xác thực và dừng dịch vụ nền cục bộ
+dưới dạng Effect.
+
+```sh
+bun add @effect/platform-node
+```
+
+Tạo client đã xác thực cho dịch vụ được đảm bảo sẵn.
+
+```ts
+import { NodeFileSystem } from "@effect/platform-node"
+import { OpenCode } from "@opencode/client/effect"
+import { Service } from "@opencode/client/effect/service"
+import { Effect } from "effect"
+import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http"
+
+const program = Effect.gen(function* () {
+  const endpoint = yield* Service.ensure()
+  const httpClient = yield* HttpClient.HttpClient
+  const client = yield* OpenCode.make({ baseUrl: endpoint.url }).pipe(
+    Effect.provideService(
+      HttpClient.HttpClient,
+      HttpClient.mapRequest(httpClient, (request) => HttpClientRequest.setHeaders(request, Service.headers(endpoint))),
+    ),
+  )
+  return yield* client.server.info()
+})
+
+const health = await Effect.runPromise(
+  program.pipe(Effect.provide(FetchHttpClient.layer), Effect.provide(NodeFileSystem.layer)),
+)
+```
+
+Phát hiện mà không khởi động, hoặc dừng đúng dịch vụ đã đăng ký.
+
+```ts
+const endpoint = yield * Service.discover()
+yield * Service.stop()
+```

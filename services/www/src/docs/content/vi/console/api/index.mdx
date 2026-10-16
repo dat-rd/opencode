@@ -1,0 +1,167 @@
+---
+title: "Tổng quan API"
+description: "Xác thực với OpenCode Console API bằng khóa tài khoản dịch vụ hoặc token người dùng."
+---
+
+Console API cho phép các tích hợp đọc cấu hình không gian làm việc và quản lý ngân sách. Các đường dẫn tương đối so với
+base URL của Console.
+
+```bash
+export CONSOLE_URL="https://opencode.ai/console"
+export SERVICE_API_KEY="oc_sk_..."
+
+curl --fail-with-body "${CONSOLE_URL}/api/v2/config" \
+  --header "Authorization: Bearer ${SERVICE_API_KEY}"
+```
+
+| API                                     | Endpoint                                     |
+| --------------------------------------- | -------------------------------------------- |
+| [Suy luận](/console/api/inference)       | `https://opencode.ai/inference/...`         |
+| [Nhà cung cấp](/console/api/providers)   | `https://opencode.ai/inference/custom/...`  |
+| [Ngân sách](/console/api/budgets)        | `/api/v1/budgets/members`                   |
+| [Cấu hình](#workspace-config)            | `GET /api/v2/config`                        |
+
+## Tài khoản dịch vụ
+
+Các tích hợp xác thực bằng một tài khoản dịch vụ: một thành viên không phải người của không gian làm việc, có khóa API, mức
+sử dụng và [ngân sách](/console/budgets#service-account-budgets) riêng. Chủ sở hữu và quản trị viên quản lý chúng tại **Khóa**.
+
+1. Mở **Khóa** và nhấp **Thêm tài khoản dịch vụ**, rồi đặt tên cho nó, ví dụ `CI Pipeline`.
+2. Mở tài khoản dịch vụ và nhấp **Thêm khóa API**.
+3. Chọn **Tên khóa**, **Quyền** và **Ngày hết hạn** tùy chọn, rồi nhấp **Tạo khóa**.
+4. Chép khóa. Nó chỉ hiển thị một lần.
+
+```text
+oc_sk_1a2b3c4d5e6f_...
+```
+
+Gửi khóa dưới dạng bearer token. Nó được gắn với một không gian làm việc, nên không cần header không gian làm việc.
+
+```text
+Authorization: Bearer oc_sk_...
+```
+
+### Quyền
+
+| Quyền            | Cho phép                                                                                                         |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Chỉ suy luận     | Các yêu cầu [Suy luận](/console/api/inference) và [Nhà cung cấp](/console/api/providers), cùng `GET /api/v2/config`. |
+| Tất cả           | Mọi thứ ở trên, cộng thêm Console API với quyền quản trị, trừ việc quản lý mô hình.                            |
+
+Một số hành động luôn yêu cầu một người đã đăng nhập vào Console, kể cả khi dùng khóa **Tất cả**: mời thành viên, đổi vai
+trò, xóa thành viên, và tạo hoặc thu hồi khóa.
+
+### Thu hồi khóa
+
+Mở tài khoản dịch vụ và thu hồi một khóa tại **API Keys**. Xóa tài khoản dịch vụ sẽ thu hồi toàn bộ khóa của nó. Các quy
+trình tự động dùng khóa đã thu hồi hoặc hết hạn sẽ nhận HTTP `401` ngay lập tức.
+
+## Token người dùng
+
+Token người dùng hành động như một người đã đăng nhập với vai trò không gian làm việc của họ. Gửi token kèm header
+`x-org-id` chỉ định không gian làm việc.
+
+```bash
+curl --fail-with-body "${CONSOLE_URL}/api/v2/config" \
+  --header "Authorization: Bearer ${USER_TOKEN}" \
+  --header "x-org-id: org_..."
+```
+
+Token từ [luồng thiết bị](#device-flow) được gắn với không gian làm việc đã chọn khi đăng nhập nên không cần header đó. Một
+`x-org-id` khác sẽ trả về `403`.
+
+## Luồng thiết bị
+
+OpenCode đăng nhập bằng cơ chế ủy quyền thiết bị OAuth (RFC 8628). Các CLI khác có thể dùng cùng luồng này.
+
+1. Yêu cầu một mã thiết bị. Gửi `supports_org_scope=true` để gắn token với một không gian làm việc.
+
+   ```bash
+   curl --fail-with-body "${CONSOLE_URL}/auth/device/code" \
+     --data "client_id=my-cli" \
+     --data "supports_org_scope=true"
+   ```
+
+   Phản hồi chứa `device_code`, `user_code`, `verification_uri_complete`, `expires_in` (600 giây) và
+   `interval` (5 giây).
+
+2. Mở `verification_uri_complete` trong trình duyệt. Đó là một đường dẫn như `/console/device?user_code=...`, tương đối với
+   `https://opencode.ai`. Người dùng đăng nhập, chọn một không gian làm việc và phê duyệt.
+
+3. Thăm dò lấy token mỗi `interval` giây với cùng `client_id`.
+
+   ```bash
+   curl --fail-with-body "${CONSOLE_URL}/auth/device/token" \
+     --data "grant_type=urn:ietf:params:oauth:grant-type:device_code" \
+     --data "device_code=..." \
+     --data "client_id=my-cli"
+   ```
+
+   Trước khi được phê duyệt, phản hồi là `400` với `authorization_pending`. Khi thành công, nó trả về `access_token`,
+   `refresh_token`, `expires_in` và `org_id`.
+
+4. Làm mới trước khi access token hết hạn. Ràng buộc với không gian làm việc được giữ nguyên.
+
+   ```bash
+   curl --fail-with-body "${CONSOLE_URL}/auth/device/token" \
+     --data "grant_type=refresh_token" \
+     --data "refresh_token=..." \
+     --data "client_id=my-cli"
+   ```
+
+Mỗi refresh token chỉ có thể dùng một lần. Dùng lại một refresh token cũ sẽ thu hồi toàn bộ phiên đó.
+
+## Cấu hình không gian làm việc
+
+`GET /api/v2/config` trả về các nhà cung cấp và mô hình khả dụng cho không gian làm việc theo định dạng
+[cấu hình](/config) của OpenCode V2. OpenCode nạp nó sau `/connect`.
+
+```bash
+curl --fail-with-body "${CONSOLE_URL}/api/v2/config" \
+  --header "Authorization: Bearer ${SERVICE_API_KEY}"
+```
+
+```json
+{
+  "providers": {
+    "opencode": {
+      "name": "OpenCode",
+      "env": ["OPENCODE_CONSOLE_TOKEN"],
+      "package": "aisdk:@ai-sdk/openai-compatible",
+      "settings": {
+        "baseURL": "https://opencode.ai/inference/openai/v1",
+        "apiKey": "{env:OPENCODE_CONSOLE_TOKEN}"
+      },
+      "headers": { "x-opencode-org-id": "org_..." },
+      "models": {
+        "kimi-k2.6": { "name": "Kimi K2.6" }
+      }
+    }
+  }
+}
+```
+
+| Trường                   | Mô tả                                                                                 |
+| ------------------------ | ------------------------------------------------------------------------------------- |
+| `providers`              | Console, Go và các nhà cung cấp đã kết nối, mỗi cái kèm cài đặt cổng và mô hình của nó. |
+| `websearch`              | [Tìm kiếm web](/console/websearch) được lưu trữ, dành cho thành viên khi được bật.       |
+| `mcp`                    | Máy chủ MCP của Console, dành cho thành viên.                                         |
+| `policies`               | Các câu lệnh [chính sách](/policies#console) của không gian làm việc.                 |
+| `experimental.policies`  | Tên đã lỗi thời cho `policies`, vẫn được chấp nhận.                                    |
+
+Mọi mức quyền của khóa và mọi vai trò thành viên đều có thể đọc cấu hình này.
+
+## Lỗi
+
+Lỗi trả về JSON với một `_tag` đặt tên cho lỗi đó.
+
+```json
+{ "_tag": "Forbidden" }
+```
+
+| Trạng thái | Ý nghĩa                                                                                               |
+| ---------- | ----------------------------------------------------------------------------------------------------- |
+| `400`      | `OrgRequired`: đã gửi token người dùng mà không có `x-org-id`.                                         |
+| `401`      | Thiếu, không hợp lệ, hết hạn hoặc đã thu hồi thông tin xác thực.                                       |
+| `403`      | Sai không gian làm việc, thiếu quyền, hoặc khóa **Chỉ suy luận** trên một endpoint của Console.        |
+| `404`      | Không gian làm việc không tồn tại hoặc đã bị xóa.                                                       |

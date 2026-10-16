@@ -1,0 +1,110 @@
+---
+title: "Nhà cung cấp"
+description: "Kết nối tài khoản nhà cung cấp mô hình của riêng bạn vào một không gian làm việc OpenCode Console và chọn mô hình nào thành viên có thể dùng."
+---
+
+Kết nối các tài khoản nhà cung cấp mà bạn đang trả tiền, chẳng hạn Anthropic, OpenAI hoặc AWS Bedrock, rồi chia sẻ mô hình của chúng cho mọi người trong không gian làm việc. Console lưu thông tin xác thực và phục vụ từng nhà cung cấp qua cổng của mình, nên thành viên dùng được mô hình mà không bao giờ phải thấy khóa của nhà cung cấp. Cùng cổng đó khả dụng cho các công cụ của riêng bạn qua [Nhà cung cấp API](/console/api/providers).
+
+Chủ sở hữu và quản trị viên quản lý nhà cung cấp từ tab **Nhà cung cấp**. Thành viên nhận được các mô hình đã bật trong OpenCode sau khi chạy `/connect`.
+
+## Kết nối nhà cung cấp
+
+1. Mở **Nhà cung cấp** và nhấp **Kết nối nhà cung cấp**.
+2. Chọn một nhà cung cấp trong danh mục và nhập khóa API của nó.
+3. Tùy chọn, nhấp **Kiểm tra kết nối**, rồi nhấp **Lưu**.
+
+Danh mục bao gồm Anthropic, OpenAI, Google, xAI, DeepSeek, Mistral, Groq, OpenRouter và nhiều hơn nữa. Các nhà cung cấp trong danh mục đã được cấu hình sẵn mô hình của chúng.
+
+### Nhà cung cấp đám mây
+
+Các nhà cung cấp đám mây cần thêm vài thông tin.
+
+| Nhà cung cấp         | Thông tin cần thiết                          |
+| -------------------- | --------------------------------------------- |
+| Azure                | Tên tài nguyên và khóa API                    |
+| AWS Bedrock          | Vùng và khóa API                              |
+| Google Vertex AI     | Vùng và JSON tài khoản dịch vụ                |
+| Cloudflare AI Gateway | Account ID, Gateway ID và API token          |
+| Databricks           | URL không gian làm việc và token              |
+
+### Nhà cung cấp tùy chỉnh
+
+Nhấp **Thêm nhà cung cấp tùy chỉnh** để kết nối bất kỳ endpoint nào khác, rồi thêm mô hình của nó bằng **Thêm mô hình**.
+
+| Trường      | Mô tả                                                                                 |
+| ----------- | ------------------------------------------------------------------------------------- |
+| Base URL    | Nơi Console chuyển tiếp yêu cầu, ví dụ `https://api.deepseek.com/v1`.                |
+| Format      | Chat Completions, Responses API, Anthropic Compatible hoặc Google Generative AI.      |
+| Auth mode   | Bearer, header khóa API hoặc header tùy chỉnh.                                        |
+| Credential  | Khóa mà Console gửi cho nhà cung cấp.                                                |
+
+## Chọn mô hình
+
+Mở một nhà cung cấp để xem các mô hình của nó. Chỉ những mô hình đã bật mới khả dụng cho thành viên.
+
+- Dùng nút chuyển **Đã bật** để bật hoặc tắt một mô hình.
+- Bật **Mô hình mới** để cho phép các mô hình mà nhà cung cấp sẽ thêm vào sau này.
+
+## Sửa mô hình
+
+Nhấp vào một mô hình để sửa nó. Các thay đổi được lưu khi bạn đóng bảng điều khiển.
+
+| Mục             | Nội dung có thể thay đổi                                     |
+| --------------- | ---------------------------------------------------------------- |
+| Tổng quan        | Tên hiển thị, API ID, hỗ trợ công cụ, kiểu đầu vào và đầu ra  |
+| Biến thể        | Các biến thể với header hoặc body riêng                        |
+| Cấu hình        | Biến thể mặc định, header và body của yêu cầu, giới hạn token |
+| Bậc chi phí     | Giá đầu vào, đầu ra, đọc bộ nhớ đệm và ghi bộ nhớ đệm cho mỗi 1M token |
+
+### Giá tùy chỉnh
+
+Mô hình trong danh mục bắt đầu với giá niêm yết của nhà cung cấp. Nếu bạn đã thương lại giá, ví dụ được giảm giá trên hợp đồng OpenAI của bạn, hãy ghi đè giá tại **Bậc chi phí** để báo cáo mức sử dụng và [ngân sách](/console/budgets) khớp với số tiền bạn thực sự trả.
+
+| Trường                  | Giá niêm yết | Giá của bạn |
+| ----------------------- | ------------ | ------------ |
+| Giá đầu vào            | $2.50        | $2.00        |
+| Giá đầu ra             | $15.00       | $12.00       |
+| Giá đọc bộ nhớ đệm     | $0.25        | $0.20        |
+
+Những giá bạn thay đổi sẽ được làm nổi bật trên trang nhà cung cấp. Dùng **Khôi phục giá trị mặc định** trên một trường, hoặc **⋯ › Khôi phục...** trên mô hình, để trở lại giá niêm yết.
+
+Thêm bậc **Ngữ cảnh** khi một mô hình tính phí cao hơn vượt quá một kích thước ngữ cảnh, ví dụ với các lời nhắc trên 200K token.
+
+### Mô hình tùy chỉnh
+
+Nhấp **Thêm mô hình** để thêm một mô hình mà danh mục không có, kèm **Tên hiển thị** và **Mô hình ID** của nó. Dùng **⋯ › Nhân bản...** trên một mô hình hiện có để bắt đầu từ cài đặt của nó.
+
+## Mô hình OpenCode
+
+Tab **Mô hình** quản lý các [mô hình](/console/models) do Console cung cấp, vốn được trả bằng tín dụng của không gian làm việc. Nó hoạt động giống như trang nhà cung cấp:
+
+- Bật hoặc tắt từng mô hình riêng lẻ.
+- Tắt **Mô hình miễn phí** để chặn mô hình miễn phí cho không gian làm việc.
+- Bật **Mô hình mới** để tự động cho phép các mô hình mới của Console.
+
+Tắt toàn bộ nhà cung cấp tại **⋯ › Tắt** để chỉ dùng các nhà cung cấp của riêng bạn.
+
+## Dùng trong OpenCode
+
+Thành viên chạy `/connect` và chọn không gian làm việc. Mỗi nhà cung cấp đã bật hiển thị dưới dạng tên không gian làm việc đứng trước tên nhà cung cấp, và `/models` liệt kê các mô hình đã bật của nó.
+
+```text
+Acme Inc. / Anthropic
+```
+
+Bật **Chỉ nhà cung cấp được quản lý** trong **Cài đặt › Chung** để giới hạn OpenCode chỉ dùng các nhà cung cấp của không gian làm việc cho mọi người.
+
+## Tắt hoặc xóa
+
+Mở menu **⋯** của nhà cung cấp:
+
+- **Tắt** ẩn nhà cung cấp và các mô hình của nó khỏi thành viên nhưng vẫn giữ cài đặt của nó.
+- **Xóa...** xóa nhà cung cấp và các mô hình của nó. Hộp thoại hiển thị ai đã dùng gần đây và gợi ý **Tắt thay thế**.
+
+Để xoay vòng một khóa, nhấp vào thông tin xác thực trên trang nhà cung cấp và nhập khóa mới.
+
+## Thanh toán
+
+Nhà cung cấp tính phí token cho bạn; Console không trừ tín dụng cho chúng. Console vẫn ghi lại từng yêu cầu cùng chi phí của nó dựa trên giá của mô hình, nên báo cáo mức sử dụng và [ngân sách](/console/budgets) bao gồm khoản đó.
+
+Để gọi một nhà cung cấp từ các công cụ của riêng bạn thay vì từ OpenCode, hãy dùng [Nhà cung cấp API](/console/api/providers).

@@ -1,0 +1,1836 @@
+---
+title: "Tổng quan"
+---
+
+Tiện ích mở rộng có thể thay đổi hành vi của OpenCode và bổ sung tính năng mới. Nếu muốn thay đổi terminal UI, hãy xây một
+[tiện ích mở rộng CLI](/build/plugins/cli).
+
+Bạn đang chuyển một tiện ích mở rộng OpenCode 1 hiện có? Hãy làm theo
+[hướng dẫn chuyển đổi tiện ích mở rộng V1](/build/plugins/migrate-v1).
+
+```ts title=".opencode/plugins/example/index.ts"
+import { Plugin } from "@opencode/plugin"
+
+export default Plugin.define({
+  id: "example",
+  async setup(ctx) {
+    await ctx.storage.set("loaded", true)
+  },
+})
+```
+
+Các tiện ích mở rộng trong `.opencode/plugins/` được tự động nạp, giống như ví dụ cục bộ ở trên. Để nạp các package đã
+xuất bản hoặc thư mục tiện ích mở rộng nằm ở nơi khác, hãy thêm chúng vào `plugins` trong `opencode.json(c)`:
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugins": [
+    "opencode-acme-plugin",
+    "opencode-acme-plugin@1.2.0",
+    "@acme/opencode-plugin",
+    "./plugins/local",
+    "../shared/plugin",
+    "/absolute/path/plugin",
+    "file:///home/me/plugins/local",
+    {
+      "package": "@acme/opencode-plugin",
+      "options": {
+        "agent": "reviewer",
+        "strict": true,
+      },
+    },
+  ],
+}
+```
+
+Xem [Cấu hình tiện ích mở rộng](/plugins) để biết thêm các tùy chọn nạp và cấu hình.
+
+## Vòng đời
+
+`setup` chạy khi tiện ích mở rộng được nạp. Hàm này có thể trả về một hàm dọn dẹp, được gọi khi tiện ích mở rộng được gỡ bỏ.
+
+```ts
+import { Plugin } from "@opencode/plugin"
+
+export default Plugin.define({
+  id: "example",
+  setup(ctx) {
+    console.log(`loaded in OpenCode ${ctx.app.version}`)
+    return () => console.log("unloaded")
+  },
+})
+```
+
+### Ngữ cảnh
+
+Ngữ cảnh của tiện ích mở rộng về bản chất là một [client server OpenCode](/build/client). Các phương thức đọc và hành
+động của nó dùng cùng đầu vào và phản hồi như client. Nó bổ sung các phương thức chỉ dành cho tiện ích mở rộng, phục vụ
+transform, móc nối runtime, nạp lại, đăng ký và tùy chọn của tiện ích mở rộng.
+
+```ts
+setup(ctx) {
+  console.log(ctx.app.version)
+}
+```
+
+`ctx.location` mô tả vị trí nơi thực thể tiện ích mở rộng này được nạp. Nó gồm `directory`, `workspaceID` tùy chọn và
+siêu dữ liệu `project` (`id`, `directory` và `canonical`). Trường này khả dụng trong cả tiện ích mở rộng Promise lẫn
+Effect. Đây là vị trí của thực thể tiện ích mở rộng, không phải vị trí của mọi phiên mà nó truy cập được hay mọi sự kiện mà
+nó nhận được.
+
+```ts
+setup(ctx) {
+  console.log(ctx.location.directory)
+  console.log(ctx.location.project.canonical)
+}
+```
+
+### Tùy chọn
+
+Truyền tùy chọn của tiện ích mở rộng bằng dạng đối tượng trong `opencode.json(c)`.
+
+```jsonc title="opencode.jsonc"
+{
+  "plugins": [
+    {
+      "package": "./plugins/company",
+      "options": {
+        "strict": true,
+      },
+    },
+  ],
+}
+```
+
+Đọc các giá trị đó từ `ctx.options` trong `setup`.
+
+```ts title="plugins/company/index.ts"
+import { Plugin } from "@opencode/plugin"
+
+export default Plugin.define({
+  id: "company",
+  setup(ctx) {
+    const strict = ctx.options.strict === true
+  },
+})
+```
+
+## Transform
+
+Transform là các thay đổi đồng bộ đối với trạng thái domain của OpenCode, và mỗi transform dựa trên các đăng ký trước đó
+trong domain của nó. Các lần đọc registry như `ctx.model.list()` phản ánh mọi đăng ký cho đến thời điểm hiện tại, kể cả
+trong lúc thiết lập tiện ích mở rộng; việc gộp lô lúc khởi động chỉ gom các thông báo cập nhật và không bao giờ làm chậm kết
+quả trả về. API trạng thái tài nguyên vẫn báo cáo trạng thái của các tài nguyên đang chạy: một định nghĩa đã đăng ký
+không có nghĩa kết nối hay công việc tài nguyên khác của nó đã hoàn tất.
+
+Các nguồn đóng góp nhà cung cấp và định nghĩa mô hình bất biến thông qua `ctx.provider.transform`.
+
+```ts title="plugins/models/index.ts"
+import { Model, Plugin, Provider } from "@opencode/plugin"
+
+export default Plugin.define({
+  id: "company.models",
+  async setup(ctx) {
+    const providerID = Provider.ID.make("acme")
+    const models = [{ ...Model.Info.default(providerID, Model.ID.make("reasoner")), name: "Acme Reasoner" }]
+    await ctx.provider.transform((editor) => {
+      editor.add({
+        info: {
+          ...Provider.Info.empty(providerID),
+          name: "Acme",
+          activation: "enabled",
+          package: "@opencode/ai/providers/openai-compatible",
+          settings: { baseURL: "http://127.0.0.1:8000/v1" },
+        },
+        models,
+      })
+    })
+
+    const available = await ctx.model.list()
+  },
+})
+```
+
+Mọi đăng ký, lần gỡ bỏ hoặc `reload()` đều đánh dấu registry là đã thay đổi; lần đọc tiếp theo sẽ dựng lại nó bằng cách
+phát lại mọi transform đang hoạt động theo thứ tự đăng ký lên một giá trị mới. Hãy giữ cho transform rẻ và có thể lặp lại.
+Một giá trị mà bạn đã đọc không bao giờ bị các lần dựng lại sau đó thay đổi.
+
+Sau khi các transform của nhà cung cấp và tính khả dụng được phân giải, OpenCode hiện thực hóa các mô hình của những
+nhà cung cấp đang hoạt động và phát lại từng transform mô hình theo đúng thứ tự. Chính sách mô hình có thể xem toàn bộ
+tập ứng viên, kể cả các nguồn vừa được làm mới.
+
+```ts title="plugins/model-budget/index.ts"
+import { Plugin } from "@opencode/plugin"
+
+export default Plugin.define({
+  id: "company.model-budget",
+  async setup(ctx) {
+    await ctx.model.transform((editor) => {
+      editor
+        .list()
+        .filter((model) => model.cost.some((tier) => tier.output > 20))
+        .forEach((model) => {
+          editor.remove(model.providerID, model.id)
+        })
+    })
+  },
+})
+```
+
+Các đầu vào bị chụp không được tự động theo dõi. Hãy nạp dữ liệu bên ngoài trước khi gọi callback đồng bộ, rồi gọi
+`reload()` sau khi các đầu vào đó thay đổi. Ở đây, `loadFromSource()` trả về các mục
+`{ info: Provider.Info, models: readonly Model.Info[] }`.
+
+```ts title="plugins/models/index.ts"
+import { Plugin } from "@opencode/plugin"
+
+export default Plugin.define({
+  id: "company.models",
+  async setup(ctx) {
+    const source = { providers: await loadFromSource() }
+
+    await ctx.provider.transform((editor) => {
+      source.providers.forEach((provider) => editor.add(provider))
+    })
+
+    const refresh = async () => {
+      source.providers = await loadFromSource()
+      await ctx.provider.reload()
+    }
+
+    const timer = setInterval(() => void refresh().catch(console.error), 60_000)
+    return () => clearInterval(timer)
+  },
+})
+```
+
+Thay đổi ở nhà cung cấp sẽ vô hiệu hóa toàn bộ kết quả mô hình đang hoạt động, nên chính sách giá đầu ra vẫn lọc các
+mô hình vừa làm mới. Hãy dùng `ctx.model.reload()` khi chỉ một đầu vào được transform mô hình chụp lại thay đổi.
+
+## API
+
+### Tác nhân
+
+Đọc toàn bộ tác nhân hoặc lấy một tác nhân theo ID.
+
+```ts
+const agents = await ctx.agent.list()
+const build = await ctx.agent.get({ agentID: "build" })
+```
+
+Đăng ký một transform để xem, cập nhật, gỡ bỏ hoặc chọn tác nhân mặc định.
+
+```ts
+await ctx.agent.transform((editor) => {
+  const agents = editor.list()
+  const build = editor.get("build")
+
+  editor.default("build")
+  editor.update("build", (agent) => {
+    agent.description = "Builds features and fixes bugs"
+  })
+  editor.remove("legacy")
+})
+```
+
+Nạp lại tác nhân sau khi trạng thái bên ngoài mà một transform sử dụng thay đổi.
+
+```ts
+await ctx.agent.reload()
+```
+
+#### Tham chiếu
+
+Schema: [`Agent.Info`](/api#schema-Agent.Info)
+
+```ts
+interface AgentContext {
+  list(input?: AgentListInput, requestOptions?: RequestOptions): Promise<AgentListOutput>
+  get(input: AgentGetInput, requestOptions?: RequestOptions): Promise<AgentGetOutput>
+  transform(callback: (editor: AgentEditor) => void): Promise<Registration>
+  reload(): Promise<void>
+}
+
+interface AgentEditor {
+  list(): readonly AgentInfo[]
+  get(id: string): AgentInfo | undefined
+  default(id: string | undefined): void
+  update(id: string, update: (agent: AgentInfo) => void): void
+  remove(id: string): void
+}
+
+interface Registration {
+  dispose(): Promise<void>
+}
+```
+
+### Nhà cung cấp
+
+Đọc các nhà cung cấp khả dụng hoặc xem siêu dữ liệu của một nhà cung cấp theo ID.
+
+```ts
+const providers = await ctx.provider.list()
+const provider = await ctx.provider.get({ providerID: "anthropic" })
+```
+
+Transform của nhà cung cấp dùng để sửa cài đặt của nhà cung cấp và định nghĩa nguồn. Các lần đọc qua editor bao gồm cả
+nhà cung cấp không hoạt động và trả về định nghĩa bất biến; `models.update` sửa một bản sao thuộc sở hữu của mô hình
+nguồn.
+
+```ts
+await ctx.provider.transform((editor) => {
+  editor.update("anthropic", (provider) => {
+    provider.headers = { ...provider.headers, "x-company": "engineering" }
+  })
+  editor.models.update("anthropic", "claude-sonnet-4-5", (model) => {
+    model.name = "Team Sonnet"
+  })
+  editor.models.remove("anthropic", "legacy-model")
+  editor.remove("legacy-provider")
+})
+```
+
+Thay danh mục nguồn của một nhà cung cấp bằng `models.set`, rồi nạp lại sau khi các định nghĩa đã chụp thay đổi.
+
+```ts
+const source = { models: await loadModels() }
+await ctx.provider.transform((editor) => {
+  editor.models.set("acme", source.models)
+})
+
+source.models = await loadModels()
+await ctx.provider.reload()
+```
+
+Để khám phá theo tài khoản, hãy truyền kết nối dùng để nạp danh mục đó làm `sourceConnection`. OpenCode loại trừ nhà cung
+cấp ấy khi một kết nối khác đang được chọn, cho tới khi tiện ích mở rộng của bạn công bố danh mục đã làm mới.
+
+```ts
+const connection = await ctx.integration.connection.active("acme")
+if (!connection) return
+const inventory = await loadInventory(connection)
+await ctx.provider.transform((editor) => {
+  editor.add({ info: inventory.provider, models: inventory.models, sourceConnection: connection })
+})
+```
+
+#### Tham chiếu
+
+Các schema: [`Provider.Info`](/api#schema-Provider.Info), [`Model.Info`](/api#schema-Model.Info)
+
+```ts
+interface ProviderDomain extends ProviderApi {
+  transform(callback: (editor: ProviderEditor) => void): Promise<Registration>
+  reload(): Promise<void>
+}
+
+interface ProviderRecord {
+  readonly provider: Provider.Info
+  readonly models: ReadonlyMap<string, Model.Info>
+  readonly sourceConnection?: ConnectionInfo
+}
+
+interface ProviderEditor {
+  list(): readonly ProviderRecord[]
+  get(providerID: string): ProviderRecord | undefined
+  add(input: { info: Provider.Info; models: readonly Model.Info[]; sourceConnection?: ConnectionInfo }): void
+  update(providerID: string, update: (provider: DeepMutable<Provider.Info>) => void): void
+  remove(providerID: string): void
+  readonly models: {
+    set(providerID: string, models: readonly Model.Info[]): void
+    update(providerID: string, modelID: string, update: (model: DeepMutable<Model.Info>) => void): void
+    remove(providerID: string, modelID: string): void
+  }
+}
+```
+
+### Mô hình
+
+Đọc các mô hình khả dụng và lựa chọn mặc định.
+
+```ts
+const models = await ctx.model.list()
+const selected = await ctx.model.default()
+```
+
+Transform của mô hình dùng để sửa toàn bộ tập ứng viên của các nhà cung cấp đang hoạt động. Các ứng viên đã tắt vẫn sửa
+được cho đến khi mọi transform kết thúc; `update` chỉ có thể thêm một mô hình dưới một nhà cung cấp khả dụng.
+
+```ts
+await ctx.model.transform((editor) => {
+  editor.list("anthropic").forEach((model) => {
+    editor.update(model.providerID, model.id, (draft) => {
+      draft.enabled = draft.capabilities.tools
+    })
+  })
+  editor.default.set("anthropic", "claude-sonnet-4-5")
+  editor.remove("anthropic", "legacy-model")
+})
+```
+
+Callback sửa các giá trị ghi đè thô của mô hình. Giá trị mặc định của nhà cung cấp được hợp nhất một lần khi OpenCode
+chốt kết quả; các lần đọc không thay đổi sẽ dùng lại kết quả đó. `editor.provider` trả về định nghĩa nguồn bất biến, gồm
+cả các template không hoạt động, chứ không phải kết quả của transform mô hình.
+
+```ts
+await ctx.model.transform((editor) => {
+  const source = editor.provider.get("anthropic")?.models.get("claude-sonnet-4-5")
+  if (!source) return
+  editor.update("anthropic", source.id, (model) => {
+    model.limit.context = Math.min(model.limit.context, source.limit.context)
+  })
+})
+
+await ctx.model.reload()
+```
+
+#### Tham chiếu
+
+Schema: [`Model.Info`](/api#schema-Model.Info)
+
+```ts
+interface ModelDomain extends ModelApi {
+  transform(callback: (editor: ModelEditor) => void): Promise<Registration>
+  reload(): Promise<void>
+}
+
+interface ModelEditor {
+  list(providerID?: string): readonly DeepMutable<Model.Info>[]
+  get(providerID: string, modelID: string): DeepMutable<Model.Info> | undefined
+  update(providerID: string, modelID: string, update: (model: DeepMutable<Model.Info>) => void): void
+  remove(providerID: string, modelID: string): void
+  readonly default: {
+    get(): { providerID: string; modelID: string } | undefined
+    set(providerID: string, modelID: string): void
+  }
+  readonly provider: {
+    list(): readonly ProviderRecord[]
+    get(providerID: string): ProviderRecord | undefined
+  }
+}
+```
+
+### Lệnh
+
+Đọc các lệnh khả dụng tại một vị trí.
+
+```ts
+const commands = await ctx.command.list()
+```
+
+Đăng ký lệnh bằng một transform. Hàm thực thi nhận phiên, các tệp đính kèm của lời nhắc và chế độ phân phối được yêu cầu.
+
+```ts
+await ctx.command.transform((editor) => {
+  editor.add({
+    name: "security-review",
+    description: "Review changes for security issues",
+    execute: async ({ sessionID, prompt, delivery }) => {
+      await ctx.session.prompt({
+        ...prompt,
+        sessionID,
+        text: `Review these changes for security issues.\n\n${prompt.text}`,
+        delivery,
+      })
+    },
+  })
+})
+```
+
+Nạp lại lệnh sau khi trạng thái bên ngoài mà một transform sử dụng thay đổi.
+
+```ts
+await ctx.command.reload()
+```
+
+#### Tham chiếu
+
+Các schema: [`Command.Info`](/api#schema-Command.Info),
+[`Session.Inbox.Delivery`](/api#schema-Session.Inbox.Delivery)
+
+```ts
+interface CommandContext {
+  list(input?: CommandListInput, requestOptions?: RequestOptions): Promise<CommandListOutput>
+  transform(callback: (editor: CommandEditor) => void): Promise<Registration>
+  reload(): Promise<void>
+}
+
+interface CommandEditor {
+  add(definition: CommandDefinition): void
+}
+
+interface CommandDefinition {
+  name: string
+  description?: string
+  execute(input: CommandInvocation): Promise<void>
+}
+
+interface CommandInvocation {
+  sessionID: string
+  prompt: PromptInput
+  delivery: "steer" | "queue"
+}
+```
+
+### Tích hợp
+
+Đọc các tích hợp và xem thông tin xác thực đang hoạt động.
+
+```ts
+const integrations = await ctx.integration.list()
+const github = await ctx.integration.get({ integrationID: "github" })
+const connection = await ctx.integration.connection.active("github")
+const credential = connection ? await ctx.integration.connection.resolve(connection) : undefined
+```
+
+Kết nối tích hợp bằng khóa API.
+
+```ts
+await ctx.integration.connect.key({
+  integrationID: "github",
+  key: process.env.GITHUB_TOKEN!,
+})
+```
+
+Bắt đầu, xem, hoàn tất hoặc hủy một lần thử kết nối OAuth.
+
+```ts
+const attempt = await ctx.integration.oauth.connect({ integrationID: "github", methodID: "oauth" })
+const status = await ctx.integration.oauth.status({ integrationID: "github", attemptID: attempt.data.attemptID })
+await ctx.integration.oauth.complete({ integrationID: "github", attemptID: attempt.data.attemptID, code })
+await ctx.integration.oauth.cancel({ integrationID: "github", attemptID: attempt.data.attemptID })
+```
+
+Các kết nối dựa trên lệnh cung cấp cùng quy trình bắt đầu, xem trạng thái và hủy.
+
+```ts
+const attempt = await ctx.integration.command.connect({ integrationID: "acme", methodID: "cli" })
+const status = await ctx.integration.command.status({ integrationID: "acme", attemptID: attempt.data.attemptID })
+await ctx.integration.command.cancel({ integrationID: "acme", attemptID: attempt.data.attemptID })
+```
+
+Đăng ký một transform để xem các tích hợp và quản lý các phương thức xác thực của chúng.
+
+```ts
+await ctx.integration.transform((editor) => {
+  const integrations = editor.list()
+  const acme = editor.get("acme")
+
+  editor.update("acme", (integration) => {
+    integration.name = "Acme"
+  })
+  editor.method.update({
+    integrationID: "acme",
+    method: { id: "cli", type: "command", label: "Sign in with Acme CLI", command: ["acme", "login"] },
+  })
+
+  const methods = editor.method.list("acme")
+  const legacy = methods.find((method) => method.type === "command" && method.id === "legacy")
+  if (legacy) editor.method.remove("acme", legacy)
+  editor.remove("legacy")
+})
+```
+
+Nạp lại tích hợp sau khi trạng thái bên ngoài mà một transform sử dụng thay đổi.
+
+```ts
+await ctx.integration.reload()
+```
+
+#### Tham chiếu
+
+Các schema: [`Integration.Info`](/api#schema-Integration.Info),
+[`Integration.Method`](/api#schema-Integration.Method), [`Connection.Info`](/api#schema-Connection.Info),
+[`Form.Answer`](/api#schema-Form.Answer)
+
+```ts
+interface IntegrationContext {
+  list(input?: IntegrationListInput, requestOptions?: RequestOptions): Promise<IntegrationListOutput>
+  get(input: IntegrationGetInput, requestOptions?: RequestOptions): Promise<IntegrationGetOutput>
+  connect: {
+    key(input: IntegrationConnectKeyInput, requestOptions?: RequestOptions): Promise<void>
+  }
+  oauth: {
+    connect(
+      input: IntegrationOauthConnectInput,
+      requestOptions?: RequestOptions,
+    ): Promise<IntegrationOauthConnectOutput>
+    status(input: IntegrationOauthStatusInput, requestOptions?: RequestOptions): Promise<IntegrationOauthStatusOutput>
+    complete(input: IntegrationOauthCompleteInput, requestOptions?: RequestOptions): Promise<void>
+    cancel(input: IntegrationOauthCancelInput, requestOptions?: RequestOptions): Promise<void>
+  }
+  command: {
+    connect(
+      input: IntegrationCommandConnectInput,
+      requestOptions?: RequestOptions,
+    ): Promise<IntegrationCommandConnectOutput>
+    status(
+      input: IntegrationCommandStatusInput,
+      requestOptions?: RequestOptions,
+    ): Promise<IntegrationCommandStatusOutput>
+    cancel(input: IntegrationCommandCancelInput, requestOptions?: RequestOptions): Promise<void>
+  }
+  transform(callback: (editor: IntegrationEditor) => void): Promise<Registration>
+  reload(): Promise<void>
+  connection: {
+    active(integrationID: string): Promise<ConnectionInfo | undefined>
+    resolve(connection: ConnectionInfo): Promise<CredentialValue | undefined>
+  }
+}
+
+interface IntegrationEditor {
+  list(): readonly IntegrationRef[]
+  get(id: string): IntegrationRef | undefined
+  update(id: string, update: (integration: IntegrationRef) => void): void
+  remove(id: string): void
+  method: {
+    list(integrationID: string): readonly IntegrationMethod[]
+    update(input: IntegrationMethodRegistration): void
+    remove(integrationID: string, method: IntegrationMethod): void
+  }
+}
+```
+
+### Thông tin xác thực
+
+Đặt một thông tin xác thực đã lưu làm thông tin đang hoạt động cho tích hợp đó.
+
+```ts
+await ctx.credential.activate({ credentialID })
+```
+
+#### Tham chiếu
+
+```ts
+interface CredentialContext {
+  activate(input: CredentialActivateInput, requestOptions?: RequestOptions): Promise<void>
+}
+```
+
+### MCP
+
+Liệt kê các MCP server và trạng thái kết nối hiện tại của chúng.
+
+```ts
+const servers = await ctx.mcp.list()
+```
+
+Tiện ích mở rộng chỉ quản lý MCP server qua transform. Dùng `editor.set` để thêm hoặc thay thế một server,
+`editor.update` để đổi cấu hình của nó và `editor.remove` để gỡ bỏ. Xem cấu hình bằng `editor.list` và `editor.get`.
+
+```ts
+await ctx.mcp.transform((editor) => {
+  const servers = editor.list()
+  const docs = editor.get("docs")
+  editor.set("docs", { type: "remote", url: "https://mcp.example.com" })
+  editor.update("docs", (server) => {
+    server.disabled = false
+  })
+  editor.remove("legacy")
+})
+```
+
+Đặt `disabled: true` trong một transform để tắt một server và ngắt kết nối của nó, hoặc `disabled: false` để bật lại và
+cho phép OpenCode kết nối. OpenCode đối chiếu vòng đời của server dựa trên cấu hình đã qua transform.
+
+Gọi `reload()` sau khi trạng thái bên ngoài mà một transform sử dụng thay đổi, để áp dụng lại các transform và đối chiếu các
+server.
+
+```ts
+await ctx.mcp.reload()
+```
+
+#### Tham chiếu
+
+Các schema: [`Mcp.Server`](/api#schema-Mcp.Server), [`Mcp.LocalConfigEncoded`](/api#schema-Mcp.LocalConfigEncoded),
+[`Mcp.RemoteConfigEncoded`](/api#schema-Mcp.RemoteConfigEncoded)
+
+```ts
+interface MCPContext {
+  list(input?: McpListInput, requestOptions?: RequestOptions): Promise<McpListOutput>
+  transform(callback: (editor: MCPEditor) => void): Promise<Registration>
+  reload(): Promise<void>
+}
+
+interface MCPEditor {
+  list(): readonly (readonly [string, McpServerConfig])[]
+  get(name: string): McpServerConfig | undefined
+  set(name: string, config: McpServerConfig): void
+  update(name: string, update: (config: McpServerConfig) => void): void
+  remove(name: string): void
+}
+```
+
+### Tiện ích mở rộng
+
+Liệt kê các tiện ích mở rộng đang hoạt động tại một vị trí.
+
+```ts
+const plugins = await ctx.plugin.list()
+```
+
+#### Tham chiếu
+
+Các schema: [`Plugin.Info`](/api#schema-Plugin.Info), [`Plugin.Source`](/api#schema-Plugin.Source)
+
+```ts
+interface PluginContext {
+  list(input?: PluginListInput, requestOptions?: RequestOptions): Promise<PluginListOutput>
+}
+```
+
+### Reference
+
+Đọc các reference khả dụng tại một vị trí.
+
+```ts
+const references = await ctx.reference.list()
+```
+
+Đăng ký một transform để xem, thêm hoặc gỡ bỏ các reference cục bộ và Git. `get(name)` trả về nguồn đang được cấu hình,
+hoặc `undefined` nếu không có tên đó.
+
+```ts
+await ctx.reference.transform((editor) => {
+  const references = editor.list()
+  editor.add("handbook", { type: "local", path: "/workspace/docs/handbook" })
+  editor.add("standards", { type: "git", repository: "https://github.com/acme/standards", branch: "main" })
+  const handbook = editor.get("handbook")
+  editor.remove("legacy")
+})
+```
+
+Nạp lại reference sau khi trạng thái bên ngoài mà một transform sử dụng thay đổi.
+
+```ts
+await ctx.reference.reload()
+```
+
+#### Tham chiếu
+
+Các schema: [`Reference.Info`](/api#schema-Reference.Info), [`Reference.LocalSource`](/api#schema-Reference.LocalSource),
+[`Reference.GitSource`](/api#schema-Reference.GitSource)
+
+```ts
+interface ReferenceContext {
+  list(input?: ReferenceListInput, requestOptions?: RequestOptions): Promise<ReferenceListOutput>
+  transform(callback: (editor: ReferenceEditor) => void): Promise<Registration>
+  reload(): Promise<void>
+}
+
+interface ReferenceEditor {
+  list(): readonly (readonly [string, ReferenceLocalSource | ReferenceGitSource])[]
+  get(name: string): ReferenceLocalSource | ReferenceGitSource | undefined
+  add(name: string, source: ReferenceLocalSource | ReferenceGitSource): void
+  remove(name: string): void
+}
+```
+
+### Generate
+
+Sinh văn bản bằng một mô hình đã chọn mà không tạo phiên, không gọi công cụ và không thêm vào lịch sử phiên.
+
+```ts
+const review = await ctx.generate.text({
+  model: { providerID: "anthropic", id: "claude-sonnet-4-6" },
+  prompt: "Review this proposed action.",
+})
+```
+
+### Quyền
+
+Hỏi quyền trước khi thực hiện một hành động. `assert` đánh giá [quy tắc quyền](/permissions) của phiên, bao gồm
+các lần phê duyệt đã lưu, và hiển thị lời nhắc cho người dùng khi một quy tắc cho kết quả `ask`. Nó hoàn tất khi hành
+động được phép.
+
+```ts
+execute: async (input, context) => {
+  await ctx.permission.assert({
+    sessionID: context.sessionID,
+    agent: context.agent,
+    source: { type: "tool", messageID: context.messageID, id: context.id },
+    action: "deploy",
+    resources: [input.environment],
+    save: [input.environment],
+  })
+  return { content: await deploy(input.environment) }
+}
+```
+
+- `action` và `resources` được đối chiếu với các quy tắc. Bất kỳ `deny` nào cũng chặn hành động; nếu không thì bất kỳ `ask`
+  nào sẽ hiển thị lời nhắc.
+- `save` liệt kê các mẫu được lưu khi người dùng chọn luôn cho phép.
+- `agent` chọn tác nhân mà các quy tắc của đó áp dụng và mặc định là tác nhân của phiên. `source` gắn lời nhắc vào
+  một lệnh gọi công cụ.
+- `metadata` truyền thông tin bổ sung cho các lời nhắc quyền và móc nối `evaluate`.
+
+Một quy tắc từ chối hoặc một lần từ chối kèm phản hồi sẽ từ chối bằng `Tool.Error` mang theo lý do, để mô hình nhìn thấy
+và tiếp tục. Một lần từ chối đơn giản sẽ kết thúc bước hiện tại. Hãy để các lỗi này lan truyền thay vì trả chúng làm kết
+quả của công cụ.
+
+Xem hoặc xử lý các yêu cầu quyền đang chờ.
+
+```ts
+const pending = await ctx.permission.list({ sessionID })
+const request = await ctx.permission.get({ sessionID, requestID })
+await ctx.permission.reply({ sessionID, requestID, reply: "once" })
+```
+
+Thay các quy tắc quyền có phạm vi theo phiên. Chúng được đánh giá sau các quy tắc của tác nhân, và quy tắc khớp cuối
+cùng sẽ thắng. Các phiên con kế thừa những quy tắc đang có hiệu lực tại thời điểm chúng được tạo.
+
+```ts
+await ctx.session.update({
+  sessionID,
+  permissions: [{ action: "edit", resource: "/path/to/original/checkout/**", effect: "deny" }],
+})
+```
+
+### Phiên
+
+Tạo hoặc đọc một phiên.
+
+```ts
+const created = await ctx.session.create({ title: "Review" })
+const session = await ctx.session.get({ sessionID })
+const messages = await ctx.session.context({ sessionID })
+```
+
+Đổi tác nhân hoặc mô hình được dùng cho các yêu cầu sau đó.
+
+```ts
+await ctx.session.switchAgent({ sessionID, agent: "build" })
+await ctx.session.switchModel({ sessionID, model: { providerID: "anthropic", id: "claude-sonnet-4-5" } })
+```
+
+Gửi lời nhắc của người dùng, yêu cầu sinh nội dung tạm thời, lệnh hoặc tin nhắn tổng hợp.
+
+```ts
+const prompt = await ctx.session.prompt({ sessionID, text: "Review the current changes" })
+const generated = await ctx.session.generate({ sessionID, prompt: "Summarize this project" })
+const command = await ctx.session.command({ sessionID, command: "review", arguments: "--staged" })
+const synthetic = await ctx.session.synthetic({ sessionID, text: "Deployment completed" })
+```
+
+Đổi tên, ngắt hoặc chờ một phiên.
+
+```ts
+await ctx.session.update({ sessionID, title: "Review" })
+await ctx.session.interrupt({ sessionID, continue: false })
+await ctx.session.wait({ sessionID })
+```
+
+Xóa một phiên tạm thời bằng `remove`. Việc xóa sẽ dừng tiến trình đang chạy và xóa đệ quy các phiên con.
+
+```ts
+await ctx.session.remove({ sessionID })
+```
+
+Yêu cầu nén bằng `compact`. Hàm này trả về mục hộp thư đến đã được tiếp nhận, không phải bản tóm tắt đã hoàn tất;
+việc nén chạy tại ranh giới bước kế tiếp theo mặc định. Hãy truyền `delivery: "queue"` để giữ đúng thứ tự hàng đợi.
+
+```ts
+const compaction = await ctx.session.compact({ sessionID })
+```
+
+#### Tham chiếu
+
+Các schema: [`Session.Info`](/api#schema-Session.Info), [`Model.Ref`](/api#schema-Model.Ref),
+[`Session.Inbox.User`](/api#schema-Session.Inbox.User), [`Session.Inbox.Synthetic`](/api#schema-Session.Inbox.Synthetic)
+
+```ts
+interface SessionContext {
+  create(input?: SessionCreateInput, requestOptions?: RequestOptions): Promise<SessionInfo>
+  get(input: SessionGetInput, requestOptions?: RequestOptions): Promise<SessionInfo>
+  remove(input: SessionRemoveInput, requestOptions?: RequestOptions): Promise<void>
+  context(input: SessionContextInput, requestOptions?: RequestOptions): Promise<readonly SessionMessageInfo[]>
+  switchAgent(input: SessionSwitchAgentInput, requestOptions?: RequestOptions): Promise<void>
+  switchModel(input: SessionSwitchModelInput, requestOptions?: RequestOptions): Promise<void>
+  update(input: SessionUpdateInput, requestOptions?: RequestOptions): Promise<void>
+  move(input: SessionMoveInput, requestOptions?: RequestOptions): Promise<void>
+  prompt(input: SessionPromptInput, requestOptions?: RequestOptions): Promise<SessionInboxUser>
+  generate(input: SessionGenerateInput, requestOptions?: RequestOptions): Promise<{ text: string }>
+  command(input: SessionCommandInput, requestOptions?: RequestOptions): Promise<SessionInboxUser>
+  compact(input: SessionCompactInput, requestOptions?: RequestOptions): Promise<SessionInboxCompaction>
+  synthetic(input: SessionSyntheticInput, requestOptions?: RequestOptions): Promise<SessionInboxSynthetic>
+  interrupt(input: SessionInterruptInput, requestOptions?: RequestOptions): Promise<void>
+  wait(input: SessionWaitInput, requestOptions?: RequestOptions): Promise<void>
+}
+```
+
+### Kỹ năng
+
+Đọc các kỹ năng khả dụng tại một vị trí.
+
+```ts
+const skills = await ctx.skill.list()
+```
+
+Đăng ký một transform để xem, thêm, cập nhật hoặc gỡ bỏ kỹ năng. `get(id)` trả về mục hiện tại trong editor, hoặc
+`undefined` nếu không có kỹ năng đó.
+
+```ts
+await ctx.skill.transform((editor) => {
+  const skills = editor.list()
+  editor.add({
+    id: "review",
+    name: "Review",
+    description: "Review the current changes",
+    path: "/workspace/.opencode/skills/review/SKILL.md",
+    content: "Review the current changes for correctness and missing tests.",
+  })
+  const review = editor.get("review")
+  editor.update("review", (skill) => {
+    skill.autoinvoke = true
+  })
+  editor.remove("legacy")
+})
+```
+
+Nạp lại kỹ năng sau khi trạng thái bên ngoài mà một transform sử dụng thay đổi.
+
+```ts
+await ctx.skill.reload()
+```
+
+#### Tham chiếu
+
+Schema: [`Skill.Info`](/api#schema-Skill.Info)
+
+```ts
+interface SkillContext {
+  list(input?: SkillListInput, requestOptions?: RequestOptions): Promise<SkillListOutput>
+  transform(callback: (editor: SkillEditor) => void): Promise<Registration>
+  reload(): Promise<void>
+}
+
+interface SkillEditor {
+  list(): readonly SkillInfo[]
+  get(id: string): SkillInfo | undefined
+  add(skill: SkillInfo): void
+  update(id: string, update: (skill: SkillInfo) => void): void
+  remove(id: string): void
+}
+```
+
+### Lưu trữ
+
+Lưu, đọc hoặc xóa các giá trị JSON lâu dài có phạm vi theo tiện ích mở rộng.
+
+```ts
+await ctx.storage.set("settings", { strict: true })
+const settings = await ctx.storage.get("settings")
+await ctx.storage.remove("settings")
+```
+
+Quét các khóa theo tiền tố, có phân trang bằng con trỏ tùy chọn.
+
+```ts
+const page = await ctx.storage.scan({ prefix: "cache/", limit: 100 })
+const next = page.next
+```
+
+#### Tham chiếu
+
+```ts
+interface StorageContext {
+  get(key: string): Promise<Json | undefined>
+  set(key: string, value: Json): Promise<void>
+  remove(key: string): Promise<void>
+  scan(options: StorageScanOptions): Promise<StorageScanResult>
+}
+
+interface StorageScanOptions {
+  prefix: string
+  after?: string
+  limit?: number
+}
+
+interface StorageScanResult {
+  entries: readonly { key: string; value: Json }[]
+  next?: string
+}
+```
+
+### Công cụ
+
+Đọc các công cụ hiện đã đăng ký, sau mọi transform và ngoài callback của một transform. Mỗi công cụ có một `id` chứa
+tên hiệu lực của nó.
+
+```ts
+const tools = await ctx.tool.list()
+const read = tools.find((tool) => tool.id === "read")
+```
+
+Đăng ký, cập nhật và gỡ bỏ công cụ bằng một transform đồng bộ, kể cả trong tiện ích mở rộng Promise. Hãy nạp dữ liệu bên
+ngoài trước khi đăng ký hoặc nạp lại. Một đăng ký hợp lệ sau đó sẽ ghi đè công cụ cùng tên hiệu lực.
+
+```ts
+const registration = await ctx.tool.transform((editor) => {
+  editor.namespace({
+    name: "acme",
+    description: "Customer account tools",
+  })
+  editor.add({
+    name: "greeting",
+    description: "Create a greeting",
+    input: {
+      type: "object",
+      properties: { name: { type: "string" } },
+      required: ["name"],
+      additionalProperties: false,
+    },
+    options: { namespace: "acme", codemode: true },
+    execute: async (input, context) => {
+      await context.progress({ status: "greeting" })
+      return { content: `Hello ${(input as { name: string }).name}!` }
+    },
+  })
+})
+```
+
+Hàm thực thi công cụ kiểu Promise nhận `context.signal`. Hãy truyền nó cho các tác vụ có thể hủy như `fetch` để khi dừng
+phiên, thao tác nền cũng dừng theo.
+
+```ts
+execute: async ({ url }, context) => {
+  const response = await fetch(url, { signal: context.signal })
+  return { content: await response.text() }
+}
+```
+
+Gọi `reload()` sau khi dữ liệu nguồn được callback chụp thay đổi. Việc nạp lại phát lại các transform đang hoạt động mà
+không đổi thứ tự của chúng; nó không chạy lại phần thiết lập của tiện ích mở rộng.
+
+```ts
+await ctx.tool.reload()
+```
+
+Dùng `list()` và `get()` để xem các công cụ đang có trong editor. Mỗi công cụ có một `id` chứa tên hiệu lực, và `get()`
+trả về `undefined` khi ID đó không tồn tại. Hãy dùng `update` và `remove` với tên hiệu lực của công cụ, gồm cả namespace
+của nó (`acme_greeting` ở trên). Dấu chấm trong namespace và ký tự không được hỗ trợ trong tên công cụ sẽ trở thành `_`.
+Tên không tồn tại sẽ bị bỏ qua; để tạo một công cụ cần dùng `add` với định nghĩa đầy đủ. Cập nhật giữ nguyên tên và
+namespace. Hãy gán schema hoặc tùy chọn mới để thay thế thay vì thay đổi các giá trị lồng nhau. Cập nhật không hợp lệ sẽ
+được ghi log và giữ nguyên định nghĩa trước đó.
+
+```ts
+await ctx.tool.transform((editor) => {
+  editor.update("acme_greeting", (tool) => {
+    tool.description = "Greet the user by name"
+  })
+  editor.remove("acme_obsolete")
+})
+```
+
+Các cập nhật và lần gỡ bỏ được phát lại đúng thứ tự cùng với các lần thêm, kể cả sau khi danh mục MCP được làm mới.
+Giải phóng registration của chúng sẽ xóa những thay đổi đó và dựng lại từ các transform còn lại.
+
+Giải phóng một registration để xóa transform của nó và dựng lại từ các transform còn lại, làm lộ ra định nghĩa trước đó
+mà nó đã ghi đè. Việc giải phóng có tính lũy thừa bằng, và việc gỡ bỏ tiện ích mở rộng cũng giải phóng các registration
+của nó.
+
+```ts
+await registration.dispose()
+```
+
+Mỗi yêu cầu mô hình đều chụp một ảnh công cụ ổn định và có thể thực thi. Các transform, lần nạp lại và thao tác giải
+phóng về sau chỉ ảnh hưởng tới những ảnh chụp tương lai, không ảnh hưởng tới các định nghĩa, mô tả namespace Code Mode
+hay hàm thực thi đã được chụp. Hàm thực thi đóng trên dữ liệu tiện ích mở rộng có thể thay đổi vẫn nhìn thấy dữ liệu
+đó; hãy chụp một giá trị bên trong transform khi giá trị đó phải gắn với định nghĩa ấy.
+
+#### Tham chiếu
+
+Các schema: [`Tool.Content`](/api#schema-Tool.Content), [`Tool.TextContent`](/api#schema-Tool.TextContent),
+[`Tool.FileContent`](/api#schema-Tool.FileContent)
+
+```ts
+interface ToolContext {
+  list(): Promise<readonly (ToolInfo & { readonly id: string })[]>
+  transform(callback: (editor: ToolEditor) => void): Promise<Registration>
+  reload(): Promise<void>
+}
+
+interface ToolEditor {
+  list(): readonly (ToolInfo & { readonly id: string })[]
+  get(id: string): (ToolInfo & { readonly id: string }) | undefined
+  namespace(namespace: { name: string; description: string }): void
+  add(tool: ToolInfo): void
+  update(id: string, update: (tool: Types.Mutable<ToolInfo>) => void): void
+  remove(id: string): void
+}
+```
+
+### VCS
+
+Đọc thông tin repository, trạng thái bản làm việc hoặc chênh lệch tệp.
+
+```ts
+const info = await ctx.vcs.get()
+const branches = await ctx.vcs.branches({ search: "feature", limit: 10 })
+const changes = await ctx.vcs.status()
+const diff = await ctx.vcs.diff({ mode: "working", context: 3 })
+```
+
+Đăng ký một nhà cung cấp VCS có phạm vi theo vị trí bằng một transform. Nhà cung cấp khớp với loại repository được phát
+hiện sẽ được chọn tự động; hãy dùng `editor.default.set` để chọn nhà cung cấp khác.
+
+```ts
+await ctx.vcs.transform((editor) => {
+  editor.add({
+    id: "custom",
+    name: "Custom VCS",
+    info: async () => ({ branch: { current: "feature", default: "main" } }),
+    branches: async (input, { signal }) => readBranches(input, signal),
+    status: async (scope, { signal }) => readStatus(scope.worktree, signal),
+    diff: async (input, { signal }) => readDiff(input, signal),
+  })
+  editor.default.set("custom")
+})
+```
+
+Callback của nhà cung cấp nhận vị trí hiện tại, thư mục gốc của bản làm việc, thư mục gốc chuẩn của dự án và kho
+repository tùy chọn. Callback diff còn nhận chế độ đã chọn, số dòng ngữ cảnh được yêu cầu và ngân sách byte đầu ra. Việc
+phát hiện repository vẫn dùng các bộ dò Git và Mercurial tích hợp sẵn của OpenCode.
+
+Nhà cung cấp có thể tùy chọn hiện thực `init(scope, { signal })` để tạo một repository trong `scope.worktree`. Quá trình
+khởi tạo chọn nhà cung cấp theo ID (Git theo mặc định), không phải theo loại repository được phát hiện. Hãy đăng ký một
+nhà cung cấp có `init` ngay cả khi vị trí chưa có repository; OpenCode kiểm tra rằng thư mục tồn tại và chưa có
+repository trước khi gọi nó, rồi phát hiện lại dự án. Các định dạng repository mới vẫn cần được hỗ trợ phát hiện ngoài
+callback này.
+
+#### Tham chiếu
+
+Các schema: [`Vcs.Info`](/api#schema-Vcs.Info), [`Vcs.FileStatus`](/api#schema-Vcs.FileStatus),
+[`FileDiff.Info`](/api#schema-FileDiff.Info)
+
+```ts
+interface VcsContext {
+  get(input?: VcsGetInput, requestOptions?: RequestOptions): Promise<VcsGetOutput>
+  branches(input?: VcsBranchesInput, requestOptions?: RequestOptions): Promise<VcsBranchesOutput>
+  status(input?: VcsStatusInput, requestOptions?: RequestOptions): Promise<VcsStatusOutput>
+  diff(input: VcsDiffInput, requestOptions?: RequestOptions): Promise<VcsDiffOutput>
+  transform(callback: (editor: VcsEditor) => void): Promise<Registration>
+  reload(): Promise<void>
+}
+
+interface VcsEditor {
+  add(definition: VcsDefinition): void
+  default: {
+    get(): string | undefined
+    set(providerID: string): void
+  }
+}
+
+interface VcsDefinition {
+  init?(scope: VcsScope, context: { signal: AbortSignal }): Promise<void>
+  // Existing info, branches, status, and diff callbacks are required.
+}
+```
+
+### Worktree
+
+Đăng ký một chiến lược worktree cục bộ bằng vòng đời tiện ích mở rộng thông thường. Module triển khai trong ví dụ này
+chịu trách nhiệm kiểm tra tùy chọn cùng các thao tác `create`, `remove` và `list` của backend.
+
+```ts title="plugins/worktrees/index.ts"
+import { Plugin } from "@opencode/plugin"
+import { makeStrategy } from "./strategy"
+
+export default Plugin.define({
+  id: "company.worktrees",
+  async setup(ctx) {
+    const strategy = makeStrategy(ctx.options)
+    await ctx.worktree.transform((editor) => {
+      editor.add(strategy)
+    })
+  },
+})
+```
+
+Nạp tiện ích mở rộng qua `plugins` và cấu hình đích đến chung riêng biệt:
+
+```jsonc title="opencode.jsonc"
+{
+  "worktree": { "directory": "../worktrees" },
+  "plugins": [{ "package": "./plugins/worktrees", "options": {} }],
+}
+```
+
+- Thêm một chiến lược sẽ tự động chọn chiến lược đó. Đăng ký đang hoạt động cuối cùng sẽ thắng; không cần cấu hình chọn
+  chiến lược.
+- Giải phóng registration của nó hoặc gỡ bỏ tiện ích mở rộng sẽ khôi phục lại triển khai trước đó, trước cùng là chiến
+  lược Git tích hợp sẵn.
+- `reload()` phát lại các transform sau khi các đầu vào đã chụp thay đổi; nó không chạy lại phần thiết lập của tiện ích
+  mở rộng.
+- Lỗi khi tạo sẽ không tự động thử lại qua Git. Các worktree đã tồn tại vẫn giữ chủ sở hữu đã ghi nhận ngay cả khi
+  mặc định thay đổi.
+- Chiến lược quản lý các thư mục cục bộ. Việc cấp phát không gian làm việc từ xa không thuộc phạm vi giao diện này.
+
+#### Thao tác
+
+Ngữ cảnh của tiện ích mở rộng cung cấp các thao tác worktree dựa trên dự án giống hệt client. Mọi thao tác đều cần có
+`projectID`. `list` chỉ đọc danh mục đã lưu, gồm cả các bản checkout đã biết của cùng dự án đó; nó không nạp cấu hình,
+không khởi động tiện ích mở rộng và không phát hiện thay đổi trên hệ thống tệp.
+
+```ts
+const projectID = ctx.location.project.id
+const created = await ctx.worktree.create({ projectID, name: "task" })
+const inventory = await ctx.worktree.list({ projectID })
+await ctx.worktree.refresh({ projectID })
+await ctx.worktree.remove({ projectID, directory: created.directory, force: false })
+```
+
+Create nạp cấu hình và tiện ích mở rộng từ thư mục `canonical` đã lưu của dự án và dùng chiến lược mà chúng đã chọn.
+Hàm này chấp nhận `directory` cha tùy chọn, nguồn `from`, `branch` bắt đầu và `name`. Nguồn mặc định là bản checkout
+chuẩn, và giá trị ghi đè `from` phải thuộc về dự án đó. Việc chọn nguồn không làm thay đổi thư mục gốc cấu hình. Một
+ref bắt đầu được cung cấp phải được chiến lược đã chọn hỗ trợ; ví dụ, thao tác ảnh chụp gốc của Rift không có tùy chọn
+chọn ref.
+
+Create và refresh chờ các tiện ích mở rộng của bản checkout chuẩn kích hoạt xong. Các lệnh gọi thực hiện trong lúc
+thiết lập tiện ích mở rộng của bản checkout đó chỉ thấy những đăng ký đã có cho đến lúc đó và không chờ việc kích hoạt
+của chính chúng.
+
+Remove nạp cấu hình chuẩn và kích hoạt các tiện ích mở rộng của nó, rồi dùng chiến lược đã ghi nhận của worktree
+thay vì mặc định đang chọn. Một chủ sở hữu đã ghi nhận nhưng không khả dụng sẽ gây ra lỗi. Đích đến của worktree có thể
+nằm ở nơi khác:
+
+```ts
+await ctx.worktree.remove({
+  directory: "/worktrees/task",
+  projectID,
+  force: false,
+})
+```
+
+Thiếu chủ sở hữu sẽ khiến lệnh xóa thất bại thay vì quay về Git. Một chiến lược có thể ném
+`new Worktree.OperationError({ message: "Uncommitted changes", forceRequired: true })`, với `Worktree` được import từ
+`@opencode/plugin`, để yêu cầu xác nhận cưỡng chế mà không phụ thuộc vào lỗi của Core hay Git.
+
+Refresh nạp cấu hình chuẩn và nhờ mọi chiến lược khả dụng tìm worktree trên tất cả các thư mục gốc checkout đã biết.
+Nó gộp kết quả, giữ nguyên quyền sở hữu đã ghi nhận và loại bỏ các thư mục không còn tồn tại. Một nguồn phát hiện bị
+lỗi sẽ được ghi log trong khi các nguồn khác vẫn tiếp tục. Các thư mục đã tồn tại vẫn được giữ trong danh mục ngay cả khi
+không có chiến lược khả dụng nào báo cáo chúng. Hãy theo dõi sự kiện `worktree.updated` rồi gọi lại `list` để đọc danh
+mục đã thay đổi.
+
+```ts
+await ctx.worktree.refresh({ projectID })
+```
+
+#### Tham chiếu
+
+Sau khi xử lý đặt tên và xung đột, phần triển khai sẽ nhận một đích đến đề xuất. Hãy trả về thư mục thực tế từ `create`; nó
+có thể khác khi backend cần bố cục riêng. OpenCode phân giải đường dẫn được trả về và dùng nó cho danh mục, các lệnh lúc
+khởi động và kết quả API. Thư mục được trả về phải tồn tại.
+
+Các chiến lược chọn đích đến khác sẽ tự xử lý xung đột tên tại đó. OpenCode vẫn tạo thư mục cha đề xuất trước khi gọi
+chiến lược. `list` chỉ được báo cáo những thư mục do chiến lược sở hữu, cộng với mọi thư mục gốc repository.
+
+```ts
+interface WorktreeDefinition {
+  readonly id: string
+  create(
+    input: { sourceDirectory: string; directory: string; branch?: string },
+    context: { signal: AbortSignal },
+  ): Promise<{ directory: string }>
+  remove(input: { directory: string; force: boolean }, context: { signal: AbortSignal }): Promise<void>
+  list(
+    sourceDirectory: string,
+    context: { signal: AbortSignal },
+  ): Promise<readonly { directory: string; type: "root" | "worktree" }[]>
+}
+
+interface WorktreeEditor {
+  add(definition: WorktreeDefinition): void
+}
+
+interface WorktreeDomain extends WorktreeApi {
+  transform(callback: (editor: WorktreeEditor) => void): Promise<Registration>
+  reload(): Promise<void>
+}
+```
+
+Callback kiểu Promise phải phối hợp với việc hủy qua `signal`. Callback kiểu Effect trả về Effect và dùng cơ chế ngắt của
+Effect. Các đăng ký vẫn nằm trong phạm vi runtime của tiện ích mở rộng; các thao tác theo dự án dùng registry của bản
+checkout chuẩn. Các adapter cấu hình của Core đưa cài đặt thư mục vào registry đó.
+
+### Websearch
+
+Liệt kê các nhà cung cấp websearch hoặc chạy một truy vấn qua nhà cung cấp đã chọn.
+
+```ts
+const providers = await ctx.websearch.providers()
+const results = await ctx.websearch.query({ query: "OpenCode plugins", providerID: "internal" })
+```
+
+Đăng ký một nhà cung cấp và chọn nhà cung cấp mặc định bằng một transform.
+
+```ts
+await ctx.websearch.transform((editor) => {
+  editor.add({
+    id: "internal",
+    name: "Internal search",
+    execute: async ({ query }, { signal }) => {
+      const response = await fetch(`https://search.example.com?q=${encodeURIComponent(query)}`, { signal })
+      const result = await response.json()
+      return [{ url: result.url, title: result.title, content: result.content, time: {} }]
+    },
+  })
+  editor.default.set("internal")
+})
+```
+
+Tắt websearch bằng cách chọn `false`, hoặc nạp lại nhà cung cấp sau khi trạng thái bên ngoài thay đổi.
+
+```ts
+await ctx.websearch.transform((editor) => editor.default.set(false))
+await ctx.websearch.reload()
+```
+
+#### Tham chiếu
+
+Các schema: [`WebSearch.Provider`](/api#schema-WebSearch.Provider), [`WebSearch.Result`](/api#schema-WebSearch.Result)
+
+```ts
+interface WebSearchContext {
+  providers(input?: WebsearchProvidersInput, requestOptions?: RequestOptions): Promise<WebsearchProvidersOutput>
+  query(input: WebsearchQueryInput, requestOptions?: RequestOptions): Promise<WebsearchQueryOutput>
+  transform(callback: (editor: WebSearchEditor) => void): Promise<Registration>
+  reload(): Promise<void>
+}
+
+interface WebSearchEditor {
+  add(provider: WebSearchDefinition): void
+  default: {
+    get(): string | false | undefined
+    set(providerID: string | false): void
+  }
+}
+```
+
+### Sự kiện
+
+Đăng ký theo dõi luồng sự kiện công khai của server đã kết nối. Hãy hủy luồng trong lúc dọn dẹp tiện ích mở rộng.
+
+```ts
+const controller = new AbortController()
+void (async () => {
+  for await (const event of ctx.event.subscribe({ signal: controller.signal })) {
+    console.log(event.type)
+  }
+})()
+return () => controller.abort()
+```
+
+#### Tham chiếu
+
+Schema: [`V2EventEncoded`](/api#schema-V2EventEncoded)
+
+```ts
+interface EventContext {
+  subscribe(options?: { signal?: AbortSignal }): AsyncIterable<OpenCodeEvent>
+}
+```
+
+## Móc nối
+
+Móc nối chặn các thao tác đang diễn ra. Hãy đăng ký một móc nối trên domain của nó và giải phóng registration được trả về
+khi không còn cần thiết.
+
+```ts
+const registration = await ctx.session.hook("context", () => {})
+await registration.dispose()
+```
+
+Nhiều tiện ích mở rộng có thể đăng ký cùng một móc nối. OpenCode chạy chúng theo thứ tự tiện ích mở rộng, nên các móc
+nối sau sẽ thấy những thay đổi do các móc nối trước tạo ra.
+
+### Phiên
+
+Các móc nối phiên chặn việc tiếp nhận lời nhắc, các lệnh gọi mô hình, HTTP gốc và thao tác thử lại.
+
+#### Tiếp nhận lời nhắc
+
+Chặn lời nhắc đến từ người dùng trước khi chúng được gắn tệp đính kèm, phân giải kỹ năng và ghi lâu dài vào hộp thư đến:
+
+```ts
+await ctx.session.hook("prompt", (event) => {
+  event.prompt.text = event.prompt.text.replaceAll("company-secret", "[redacted]")
+  event.prompt.files ??= []
+  event.prompt.files.push({ uri: "file:///project/policy.md" })
+  event.metadata = { ...event.metadata, source: "company-policy" }
+  event.delivery = "queue"
+})
+```
+
+Móc nối nhận một bản nháp thuộc sở hữu và có thể thay đổi:
+
+- `prompt` chứa `text`, `files`, các lượt nhắc tác nhân trong `agents` và các `skills` đã chọn.
+- `metadata` chứa siêu dữ liệu tiếp nhận do ứng dụng quy định.
+- `delivery` mặc định là `"steer"` và có thể đổi thành `"queue"`.
+- ID của phiên và tin nhắn là chỉ đọc; một móc nối không thể chuyển hướng việc tiếp nhận.
+
+Các tệp và kỹ năng được một móc nối thêm vào đi qua luồng phân giải và kiểm tra thông thường. Khi viết lại văn bản, hãy
+cập nhật hoặc xóa các độ lệch `mention` của phần đính kèm không còn khớp. Các lượt nhắc tác nhân không làm đổi tác nhân
+đang hoạt động của phiên.
+
+Móc nối lời nhắc chạy trong các điều kiện sau:
+
+- Các móc nối chạy theo thứ tự đăng ký, sau khi các tiện ích mở rộng tại vị trí của phiên đã sẵn sàng.
+- Các lệnh gửi qua `session.prompt` sẽ chạy móc nối.
+- Tin nhắn tổng hợp, tin nhắn shell, điều khiển nén và điều khiển di chuyển thì không.
+- Móc nối chạy một lần trong lúc tiếp nhận, không chạy trước mỗi lệnh gọi mô hình.
+- Không thể giới hạn phạm vi theo nhà cung cấp vì việc phân giải mô hình diễn ra sau khi tiếp nhận.
+
+Các chỉnh sửa trở thành đầu vào người dùng chuẩn được ghi lâu dài. Nếu khâu chuẩn bị thất bại hoặc bị gián đoạn,
+OpenCode sẽ không tiếp nhận lời nhắc đó.
+
+Hãy giữ cho móc nối lời nhắc an toàn khi thử lại. Chúng không phải là ranh giới tác dụng phụ đúng-một-lần:
+
+- Thử lại một ID đã ở trạng thái đang chờ hoặc đã được giao sẽ trả về kết quả tiếp nhận ban đầu mà không chạy lại các
+  móc nối.
+- Các lần gửi đồng thời có thể chạy móc nối nhiều lần, nhưng chỉ lần tiếp nhận thành công đầu tiên mới thắng.
+- Móc nối lời nhắc biến đổi đầu vào và không cung cấp API từ chối có kiểu.
+
+#### Yêu cầu mô hình
+
+Sửa các chỉ thị hệ thống, tin nhắn, công cụ hoặc tùy chọn yêu cầu đã lắp ráp ngay trước khi gửi tới mô hình. Mỗi loại
+yêu cầu mà một phiên phát ra đều có móc nối riêng, nên tiện ích mở rộng có thể xử lý vòng lặp tác nhân khác với các
+yêu cầu phụ trợ:
+
+- `context` chạy cho vòng lặp tác nhân, gồm cả các lần tiếp tục do công cụ thúc đẩy.
+- `compaction` chạy cho các bản tóm tắt điểm kiểm tra. `messages` là bản ghi đang được tóm tắt; OpenCode nối thêm
+  lời nhắc tóm tắt sau khi các móc nối đã chạy. Hãy đặt `result` để tự ghi lại kết quả nén và bỏ qua lệnh gọi mô hình;
+  nó nhận cùng các trường như một tin nhắn nén đã hoàn tất.
+- `generate` chạy cho các lệnh gọi `ctx.session.generate` tạm thời.
+- `title` chạy cho việc sinh tiêu đề. Nó không có `agent` hay `tools`. Hãy đặt `result` để tự cung cấp tiêu đề.
+
+```ts
+await ctx.session.hook("context", (event) => {
+  event.system.push({ type: "text", text: "Keep the review focused on correctness." })
+  delete event.tools.write
+  event.options.temperature = 0.2
+  event.options.maxTokens = 8_000
+})
+
+await ctx.session.hook("compaction", async (event) => {
+  event.result = { summary: await summarize(event.messages) }
+})
+```
+
+Các thay đổi chỉ ảnh hưởng tới lệnh gọi mô hình đang gửi đi, không ảnh hưởng tới lịch sử hay cấu hình đã ghi lâu dài.
+Một móc nối cần áp dụng cho mọi yêu cầu phải đăng ký cho từng loại.
+
+Các giá trị ghi đè của yêu cầu tuân theo các quy tắc sau:
+
+- `options` khởi đầu rỗng với mỗi lệnh gọi mô hình; nó không chứa cài đặt mô hình đã phân giải.
+- Khóa có kiểu là các cài đặt sinh nội dung; mọi khóa khác được truyền cho protocol đã chọn như một tùy chọn của nhà
+  cung cấp.
+- Các móc nối chạy theo thứ tự đăng ký và thấy những ghi đè do các móc nối trước tạo ra.
+- Giá trị ghi đè của yêu cầu được ưu tiên hơn giá trị mặc định của mô hình, và giá trị mặc định của mô hình lại được ưu tiên
+  hơn giá trị mặc định của route.
+- Các đối tượng tùy chọn của nhà cung cấp được hợp nhất theo đệ quy; mảng và giá trị vô hướng sẽ thay thế các giá trị
+  trước đó.
+- Xóa một giá trị ghi đè hoặc đặt nó thành `undefined` sẽ quay về giá trị mặc định đã cấu hình thay vì bỏ hẳn chúng.
+- Các lớp phủ body HTTP thô được áp dụng sau bước chuyển đổi theo protocol và có thể ghi đè các trường kết quả.
+
+#### Tùy chọn nhà cung cấp
+
+Tùy chọn của nhà cung cấp dùng tên tùy chọn ngữ nghĩa của protocol đã chọn, không phải tên trường thô trong body HTTP.
+Hãy giới hạn cài đặt riêng theo nhà cung cấp cho đúng nhà cung cấp tương ứng. Ví dụ, OpenAI Responses dùng
+`reasoningEffort`:
+
+```ts
+await ctx.session.hook(
+  "context",
+  (event) => {
+    event.options.reasoningEffort = "high"
+  },
+  { providerID: "openai" },
+)
+```
+
+Các tùy chọn sinh nội dung phụ thuộc vào protocol và mô hình đã chọn:
+
+- `maxTokens` là giới hạn số token đầu ra theo ngữ nghĩa.
+- Gemini hỗ trợ `topK`; OpenAI Responses không cung cấp tùy chọn đó.
+
+#### Yêu cầu mô hình
+
+Sửa cài đặt của yêu cầu mô hình và tùy chọn giới hạn móc nối cho một nhà cung cấp. Sự kiện mang cùng `kind` như các
+móc nối HTTP bên dưới.
+
+```ts
+await ctx.session.hook(
+  "model.request",
+  (event) => {
+    event.headers["x-plugin"] = "review"
+  },
+  { providerID: "anthropic" },
+)
+```
+
+#### HTTP gốc
+
+Sửa yêu cầu hoặc phản hồi gốc của nhà cung cấp. Body của chúng là luồng chỉ đọc một lần; hãy sao chép hoặc thay thế body
+trước khi đọc.
+
+Cả hai móc nối đều chạy cho mọi yêu cầu mà một phiên phát ra. `event.kind` cho biết luồng nào đã phát yêu cầu:
+`"primary"` cho vòng lặp tác nhân, `"compaction"` cho bản tóm tắt điểm kiểm tra, `"title"` cho việc sinh tiêu đề và
+`"generate"` cho các lệnh gọi `ctx.session.generate` tạm thời. Hãy dùng nó thay cho ID tác nhân để phân biệt các yêu
+cầu phụ trợ.
+
+```ts
+await ctx.session.hook("http.request", (event) => {
+  event.request.headers.set("x-session-id", event.sessionID)
+  if (event.kind === "title") event.request.headers.set("x-priority", "background")
+})
+
+await ctx.session.hook("http.response", (event) => {
+  event.response = new Response(event.response.body, {
+    status: event.response.status,
+    headers: { ...Object.fromEntries(event.response.headers), "x-plugin": "review" },
+  })
+})
+```
+
+#### WebSocket gốc (thử nghiệm)
+
+Các nhà cung cấp truyền dữ liệu qua WebSocket sẽ mở một kết nối cho mỗi phiên và dùng lại kết nối đó qua nhiều yêu
+cầu, nên `http.request` và `http.response` không bao giờ thấy lưu lượng đó. Móc nối `experimental.ws.handshake` chạy
+một lần cho mỗi lệnh gọi mô hình, trước khi kết nối được chọn. Nó mang cùng `sessionID`, `agent`, `model` và
+`kind` như các móc nối HTTP, cùng với `url` và `headers` của kết nối. Thay đổi `url` hoặc `headers` sẽ đổi socket mà
+yêu cầu dùng, nên bearer token được luân chuyển sẽ mở lại kết nối.
+
+Các móc nối HTTP vẫn chạy cho mọi yêu cầu HTTP, kể cả yêu cầu mà một route WebSocket chuyển sang.
+
+```ts
+await ctx.session.hook(
+  "experimental.ws.handshake",
+  async (event) => {
+    event.headers.authorization = `Bearer ${await mintToken(event.url)}`
+    delete event.headers["api-key"]
+  },
+  { providerID: "azure" },
+)
+```
+
+`experimental.ws.send` và `experimental.ws.receive` đưa ra chính các frame đó, tương đương với việc sửa body của một
+yêu cầu hoặc phản hồi HTTP trên WebSocket. `send` chạy sau khi driver của nhà cung cấp dựng khung gửi đi và trước
+khi khung đó được ghi ra; `receive` chạy với mỗi khung đến trước khi driver quan sát nó. Cả hai đều mang frame dưới
+dạng chuỗi và gửi đi đúng nội dung mà `frame` chứa khi móc nối kết thúc.
+
+OpenCode không kiểm tra các frame đã viết lại. Driver theo dõi trạng thái từ các phản hồi của nhà cung cấp, nên việc viết
+lại làm thay đổi ý nghĩa của protocol thuộc trách nhiệm của tiện ích mở rộng, giống hệt với body HTTP bị viết lại.
+
+```ts
+await ctx.session.hook(
+  "experimental.ws.send",
+  (event) => {
+    const body = JSON.parse(event.frame)
+    if (body.type === "response.create") body.metadata = { ...body.metadata, session: event.sessionID }
+    event.frame = JSON.stringify(body)
+  },
+  { providerID: "openai" },
+)
+
+await ctx.session.hook("experimental.ws.receive", (event) => {
+  if (event.frame.includes('"type":"error"')) console.error(event.frame)
+})
+```
+
+Các móc nối này đang thử nghiệm và tên hoặc cấu trúc của chúng có thể thay đổi.
+
+#### Chính sách thử lại
+
+Ghi đè quyết định thử lại cho một lỗi của nhà cung cấp hoặc thay độ trễ của nó tính bằng mili giây. Móc nối chạy sau
+khi OpenCode phân loại lỗi và đề xuất chính sách của mình, nhưng trước khi bất kỳ lần thử lại nào được lên lịch. Nó
+không tiết lộ cách OpenCode thực hiện lần thử tiếp theo bên trong.
+
+```ts
+await ctx.session.hook("retry", (event) => {
+  if (event.error.status === 429) {
+    event.decision = { retry: true, delay: 10_000 }
+    return
+  }
+  if (event.error.type === "provider.invalid-request" && event.attempt === 2) {
+    event.decision = { retry: true, delay: 0 }
+    return
+  }
+  if (event.attempt >= 3) event.decision = { retry: false }
+})
+```
+
+Móc nối thử lại có thể thay đổi `decision` ban đầu của OpenCode bằng cách biến một lỗi vốn kết thúc thành có thể thử
+lại, hoặc phủ quyết một lần thử lại được đề xuất.
+
+Quyết định thử lại tuân theo các quy tắc sau:
+
+- Nhiều móc nối chạy theo thứ tự đăng ký, và các móc nối sau thấy quyết định hiện tại.
+- Số lần thử tối đa tích hợp sẵn vẫn là giới hạn tuyệt đối.
+- `attempt` là lần thử thực tế đang được cân nhắc. Yêu cầu ban đầu là `1`, nên lần thử lại đầu tiên là `2`.
+- Các độ trễ không hợp lệ như `NaN`, vô cùng hoặc giá trị âm sẽ quay về độ trễ đã tính.
+- Cơ chế khôi phục khi ngữ cảnh tràn vẫn tách biệt vì nó nén hội thoại thay vì thử lại cùng một yêu cầu.
+
+#### Tham chiếu phiên
+
+```ts
+import type { SessionPrompt } from "@opencode/plugin/promise/session"
+
+interface SessionHooks {
+  prompt: SessionPrompt
+  context: SessionContextHook
+  compaction: SessionContextHook & { result?: SessionCompactionResult }
+  generate: SessionContextHook
+  title: SessionRequestHook & { result?: string }
+  "model.request": SessionModelRequestHook
+  "http.request": SessionHttpRequestHook
+  "http.response": SessionHttpResponseHook
+  "experimental.ws.handshake": SessionWebSocketHandshakeHook
+  "experimental.ws.send": SessionWebSocketSendHook
+  "experimental.ws.receive": SessionWebSocketReceiveHook
+  retry: SessionRetryHook
+}
+
+interface SessionWebSocketHandshakeHook {
+  readonly sessionID: string
+  readonly agent: string
+  readonly model: { providerID: string; id: string; variant?: string }
+  readonly kind: "primary" | "compaction" | "title" | "generate"
+  url: string
+  headers: Record<string, string>
+}
+
+interface SessionWebSocketSendHook {
+  readonly sessionID: string
+  readonly agent: string
+  readonly model: { providerID: string; id: string; variant?: string }
+  readonly kind: "primary" | "compaction" | "title" | "generate"
+  frame: string
+}
+
+interface SessionWebSocketReceiveHook {
+  readonly sessionID: string
+  readonly agent: string
+  readonly model: { providerID: string; id: string; variant?: string }
+  readonly kind: "primary" | "compaction" | "title" | "generate"
+  frame: string
+}
+
+type RetryDecision = { retry: false } | { retry: true; delay: number }
+
+interface SessionRetryHook {
+  readonly sessionID: string
+  readonly agent: string
+  readonly model: { providerID: string; id: string; variant?: string }
+  readonly error: { type: string; message: string; status?: number }
+  readonly attempt: number
+  decision: RetryDecision
+}
+
+interface SessionRequestHook {
+  readonly sessionID: string
+  readonly model: { providerID: string; id: string; variant?: string }
+  system: SystemPart[]
+  messages: Message[]
+  options: {
+    maxTokens?: number
+    temperature?: number
+    topP?: number
+    topK?: number
+    frequencyPenalty?: number
+    presencePenalty?: number
+    seed?: number
+    stop?: string[]
+  } & Record<string, unknown>
+}
+
+interface SessionContextHook extends SessionRequestHook {
+  readonly agent: string
+  tools: Record<string, { description: string; input: JsonSchema }>
+}
+
+interface SessionCompactionResult {
+  summary: string
+  providerState?: Record<string, unknown>
+  metadata?: Record<string, unknown>
+  tokens?: TokenUsage
+}
+
+interface SessionHookContext {
+  hook<Name extends keyof SessionHooks>(
+    name: Name,
+    callback: (event: SessionHooks[Name]) => Promise<void> | void,
+    options?: Name extends "prompt" ? never : { providerID?: string },
+  ): Promise<Registration>
+}
+```
+
+### Quyền
+
+Xem lại các quyết định quyền sau khi các quy tắc đã cấu hình được đánh giá và trước khi một hành động chạy hoặc một
+lời nhắc quyền được phát đi.
+
+```ts
+await ctx.permission.hook("evaluate", async (event) => {
+  if (event.action === "read") return
+
+  const messages = await ctx.session.context({ sessionID: event.sessionID })
+  const review = await ctx.generate.text({
+    model: { providerID: "anthropic", id: "claude-sonnet-4-6" },
+    prompt: buildSafetyPrompt({ messages, action: event.action, resources: event.resources }),
+  })
+  const decision = parseDecision(review.text)
+
+  event.effect = decision.effect
+  event.message = decision.reason
+})
+```
+
+Các móc nối quyền tuân theo các quy tắc sau:
+
+- Các móc nối chạy cho quyết định `allow` và `ask`.
+- Một `deny` được cấu hình tường minh là quyết định cuối cùng và không gọi móc nối.
+- Một móc nối có thể đổi `effect` thành `allow`, `ask` hoặc `deny`.
+- `message` xuất hiện trong một yêu cầu quyền được nâng cấp hoặc trở thành lý do từ chối.
+
+#### Tham chiếu
+
+```ts
+interface PermissionEvaluation {
+  readonly sessionID: string
+  readonly agent?: string
+  readonly action: string
+  readonly resources: readonly string[]
+  readonly metadata?: Record<string, unknown>
+  readonly source?: { type: "tool"; messageID: string; id: string }
+  effect: "allow" | "ask" | "deny"
+  message?: string
+}
+```
+
+### Shell
+
+Sửa lệnh shell, thư mục làm việc, thời gian chờ, tệp thực thi hoặc biến môi trường trước khi chạy.
+
+```ts
+await ctx.shell.hook("create.before", (event) => {
+  event.timeout = Math.min(event.timeout, 60_000)
+  event.env.COMPANY_ENV = "development"
+})
+```
+
+#### Tham chiếu
+
+```ts
+interface ShellHookContext {
+  hook(name: "create.before", callback: (event: ShellCreateBefore) => Promise<void> | void): Promise<Registration>
+}
+
+interface ShellCreateBefore {
+  command: string
+  cwd: string
+  timeout: number
+  shell: string
+  env: Record<string, string | undefined>
+}
+```
+
+### Công cụ
+
+Xem hoặc thay thế đầu vào của công cụ trước khi chạy.
+
+```ts
+await ctx.tool.hook("execute.before", (event) => {
+  if (event.tool === "read") console.log(event.input)
+})
+```
+
+Xem kết quả thành công hoặc lỗi sau khi chạy.
+
+```ts
+await ctx.tool.hook("execute.after", (event) => {
+  if (event.status === "completed") event.result = { ...event.result, metadata: { observed: true } }
+  if (event.status === "error") console.error(event.error.message)
+})
+```
+
+#### Tham chiếu
+
+```ts
+interface ToolHooks {
+  "execute.before": ToolExecuteBefore
+  "execute.after": ToolExecuteCompleted | ToolExecuteFailed
+}
+
+interface ToolHookContext {
+  hook<Name extends keyof ToolHooks>(
+    name: Name,
+    callback: (event: ToolHooks[Name]) => Promise<void> | void,
+  ): Promise<Registration>
+}
+```
+
+## Xuất bản
+
+Một tiện ích mở rộng dạng package dùng cùng kiểu export mặc định với tiện ích mở rộng cục bộ. Một manifest tối thiểu
+là:
+
+```json title="package.json"
+{
+  "name": "opencode-acme-plugin",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./rpc": "./src/rpc.ts"
+  },
+  "dependencies": {
+    "@opencode/plugin": "latest"
+  }
+}
+```
+
+Bản export `./rpc` là tùy chọn; hãy thêm nó khi xuất bản một [hợp đồng RPC](/build/plugins/rpc) dùng chung để các tiện
+ích mở rộng và client khác có thể import mà không phải nạp phần triển khai của bạn.
+
+Hãy dùng các phiên bản tương thích với bản phát hành OpenCode mà bạn nhắm tới và hãy thử trên package đã cài, không
+chỉ bản sao liên kết trong không gian làm việc. Hãy xuất bản một bản cập nhật tiện ích mở rộng tương thích khi bạn
+chuyển sang một hợp đồng API mới hơn.
+
+## Hỗ trợ V1
+
+Một tiện ích mở rộng có thể hỗ trợ cả V1 và V2 từ cùng một entrypoint của package. Hãy export mặc định một đối tượng
+chứa hàm `server()` của V1 và hàm `setup()` của V2:
+
+```ts title="src/index.ts"
+import { Plugin } from "@opencode/plugin"
+
+export default {
+  ...Plugin.define({
+    id: "example",
+    async setup(ctx) {
+      await ctx.tool.hook("execute.before", () => {
+        console.log("A tool is about to run")
+      })
+    },
+  }),
+  async server() {
+    return {
+      "tool.execute.before": async () => {
+        console.log("A tool is about to run")
+      },
+    }
+  },
+}
+```
+
+- V1 gọi `server()` và dùng các móc nối được trả về.
+- V2 đọc `id` và `setup()` của bản export mặc định (hoặc `effect()` với tiện ích mở rộng Effect), bỏ qua `server()`.
+- Hãy giữ mỗi phần triển khai trên API riêng của nó; việc dùng chung một bản export không chuyển móc nối V1 thành móc
+  nối V2.
+- Hãy trải `Plugin.define(...)` vào đối tượng được export để định nghĩa V2 được kiểm tra kiểu riêng biệt với
+  `server()`.
+
+Dạng đối tượng của V1 được hỗ trợ từ OpenCode `1.18.29`. Các bản phát hành V1 cũ hơn có thể lại mong đợi export dạng
+hàm; hãy thử package đã cài với bản V1 cũ nhất mà bạn định hỗ trợ và với V2.

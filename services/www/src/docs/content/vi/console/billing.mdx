@@ -1,0 +1,79 @@
+---
+title: "Thanh toán"
+description: "Thêm tín dụng, thiết lập tự động nạp tiền, quản lý phương thức thanh toán và tải hóa đơn trong OpenCode Console."
+---
+
+Console miễn phí với mọi quy mô nhóm và không thu phí theo ghế. Bạn chỉ trả tiền cho mức sử dụng, bằng số tín dụng trả trước áp dụng cho toàn bộ không gian làm việc. Chủ sở hữu và quản trị viên quản lý thanh toán tại **Cài đặt › Thanh toán**.
+
+Mức sử dụng qua [nhà cung cấp của riêng bạn](/console/providers) do nhà cung cấp tính phí, không phải Console.
+
+## Thêm phương thức thanh toán
+
+1. Mở **Cài đặt › Thanh toán**.
+2. Dưới mục **Phương thức thanh toán**, nhấp **Thêm**.
+3. Chọn một phương thức và hoàn tất thiết lập Stripe.
+
+Các phương thức thanh toán được hỗ trợ:
+
+- Thẻ
+- Link
+- Alipay
+- UPI
+- WeChat Pay
+
+Dùng **⋯ › Đặt làm mặc định** để chọn phương thức cho các khoản tính phí tự động. Xóa một phương thức có thể làm dừng tự động nạp tiền và các lần gia hạn Go đang dùng phương thức đó.
+
+## Thêm tín dụng
+
+1. Dưới mục **Tín dụng**, nhấp **Thêm tín dụng**.
+2. Chọn $10, $50 hoặc $100, hoặc chọn **Khác** và nhập số tiền.
+3. Chọn phương thức thanh toán và nhấp **Xác nhận và thanh toán**.
+
+Phí xử lý 4.6% + $0.31 được cộng thêm vào đó, nên giao dịch $50 có giá $52,61 và toàn bộ $50 được cộng vào số dư.
+
+## Tự động nạp tiền
+
+Tự động nạp tiền mua tín dụng khi số dư sắp cạn.
+
+1. Dưới mục **Tự động nạp tiền**, nhấp **Thêm quy tắc**.
+2. Đặt mức số dư kích hoạt khoản tính phí và số tiền cần thêm.
+3. Nhấp **Lưu**.
+
+Tự động nạp tiền tính phí vào phương thức thanh toán mặc định, bao gồm cả phí xử lý. Nếu một khoản tính phí thất bại, tự động nạp tiền sẽ tắt cho đến khi bạn thiết lập lại.
+
+## Kiểm tra số dư
+
+Thẻ **Tín dụng** trên trang **Tổng quan** hiển thị số dư cho chủ sở hữu và quản trị viên.
+
+## Khi tín dụng hết
+
+Các yêu cầu trả phí thất bại với HTTP `402` khi số dư về không. Số dư không bao giờ âm.
+
+```text
+Upstream request failed: Insufficient account funds
+```
+
+## Hóa đơn
+
+Mọi khoản thanh toán xuất hiện dưới mục **Hóa đơn** kèm trạng thái và liên kết đến **Tải hóa đơn** hoặc **Xem biên nhận**.
+
+| Mục                        | Được tạo bởi              |
+| -------------------------- | ------------------------- |
+| Nạp số dư                 | Thêm tín dụng             |
+| Nạp tự động               | Tự động nạp tiền          |
+| Gói đăng ký Go            | Đăng ký Go                |
+| Gia hạn Go                | Gia hạn Go hàng tháng     |
+| Mức sử dụng hàng tháng    | Thanh toán qua hóa đơn    |
+
+## Thanh toán qua hóa đơn
+
+Các không gian làm việc có hợp đồng tín dụng có thể thanh toán theo hóa đơn hàng tháng thay vì mua tín dụng. Liên hệ bộ phận hỗ trợ để thiết lập.
+
+- Mức sử dụng được trừ vào hạn mức tín dụng thay vì số dư trả trước.
+- Hóa đơn của mỗi tháng được phát hành vào ngày 1 (UTC) và đến hạn sau 14 ngày.
+- Hóa đơn đang mở có nút **Thanh toán ngay**.
+- Yêu cầu thất bại với HTTP `402` khi đạt tới hạn mức tín dụng hoặc hóa đơn quá hạn.
+
+## Go
+
+Các gói đăng ký [OpenCode Go](/console/go) dùng cùng phương thức thanh toán và xuất hiện trong cùng danh sách hóa đơn. Bật **Mức sử dụng thêm** trên thẻ tín dụng ở trang **Tổng quan** để thanh toán bằng tín dụng khi đạt tới hạn mức của Go.

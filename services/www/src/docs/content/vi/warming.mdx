@@ -1,0 +1,143 @@
+---
+title: "Làm ấm"
+---
+
+Làm ấm phiên gửi các yêu cầu mô hình theo chu kỳ để duy trì bộ nhớ đệm lời nhắc ở phía
+nhà cung cấp hoặc trạng thái ngắn hạn khác trong lúc bạn tạm dừng giữa các lời nhắc.
+Tính năng này bị tắt theo mặc định.
+
+Bật làm ấm trong bất kỳ [tệp cấu hình OpenCode](/config) nào:
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "warming": true,
+}
+```
+
+Với cấu hình này, OpenCode làm ấm một phiên vừa hoạt động sau bốn phút không có yêu cầu
+mô hình. Nó tiếp tục mỗi bốn phút cho tới khi 30 phút trôi qua kể từ yêu cầu không làm ấm
+gần nhất.
+
+## Tùy chọn
+
+Dùng dạng đối tượng để thay đổi lời nhắc làm ấm, khoảng thời gian nhàn rỗi hoặc cửa sổ
+hoạt động:
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "warming": {
+    "prompt": "Do not perform any work. Reply with exactly: OK",
+    "interval": "5 minutes",
+    "duration": "1 hour",
+  },
+}
+```
+
+| Trường | Mặc định | Mục đích |
+| --- | --- | --- |
+| `prompt` | Chỉ dẫn duy trì | Được nối thêm như một tin nhắn người dùng tạm thời cho mỗi yêu cầu làm ấm. Mặc định yêu cầu mô hình không làm gì cả, không dùng công cụ, và trả lời `OK`. |
+| `interval` | `"4 minutes"` | Khoảng thời gian nhàn rỗi trước yêu cầu làm ấm tiếp theo. |
+| `duration` | `"30 minutes"` | Cửa sổ làm ấm được đo từ yêu cầu mô hình không làm ấm gần nhất. |
+
+Các trường đối tượng bị bỏ qua sẽ giữ nguyên mặc định của chúng. Ví dụ, cấu hình này chỉ
+thay đổi khoảng thời gian:
+
+```jsonc title="opencode.jsonc"
+{
+  "warming": {
+    "interval": "2 minutes",
+  },
+}
+```
+
+## Khoảng thời gian
+
+`interval` và `duration` nhận các chuỗi thời lượng. Cả hai phải phân giải thành giá trị
+hữu hạn lớn hơn không; nếu không OpenCode sẽ bỏ qua việc làm ấm và ghi log một cảnh báo.
+
+```jsonc title="opencode.jsonc"
+{
+  "warming": {
+    "interval": "30 seconds",
+    "duration": "1 hour",
+  },
+}
+```
+
+## Thời điểm
+
+Việc làm ấm bắt đầu sau một yêu cầu mô hình không làm ấm. Sau khi một yêu cầu làm ấm kết
+thúc, khoảng thời gian nhàn rỗi kế tiếp bắt đầu, nhưng cửa sổ hoạt động không được kéo dài
+thêm.
+
+```text
+00:00  normal model request
+00:04  warming request
+00:08  warming request
+00:30  warming stops
+```
+
+Bất kỳ hoạt động mô hình không làm ấm mới nào cũng đặt lại cả hai bộ đếm. Nếu khoảng
+thời gian nhàn rỗi dài bằng hoặc dài hơn thời lượng, cửa sổ hoạt động sẽ hết hạn trước
+khi một yêu cầu làm ấm được gửi.
+
+```text
+00:00  normal model request
+00:20  normal model request; window restarts
+00:24  warming request
+00:50  warming stops
+```
+
+## Yêu cầu
+
+Một yêu cầu làm ấm dùng mô hình, tác nhân, các chỉ dẫn và ngữ cảnh hội thoại hiện tại của
+phiên. OpenCode nối thêm lời nhắc đã cấu hình một cách tạm thời, thực hiện một lệnh gọi
+mô hình, rồi loại bỏ phản hồi.
+
+```text
+[current session context]
+[transient user message: keep-alive prompt]
+→ one model response, discarded
+```
+
+Yêu cầu đó không tiếp nhận đầu vào, không thêm tin nhắn vào lịch sử, và không thay đổi
+trạng thái phiên bền vững. OpenCode không phát đi các lệnh gọi công cụ cục bộ và không tiếp
+tục một vòng lặp công cụ; lời nhắc mặc định cũng bảo mô hình không dùng công cụ.
+
+## Lỗi
+
+Các lỗi làm ấm được ghi log mà không làm thất bại hay thay đổi phiên. OpenCode chờ tới
+khoảng thời gian nhàn rỗi kế tiếp rồi thử lại, trong khi cửa sổ hoạt động ban đầu vẫn tiếp
+tục đếm ngược.
+
+```text
+00:04  warming request fails; session is unchanged
+00:08  next warming attempt
+```
+
+## Chi phí
+
+Các yêu cầu làm ấm là những yêu cầu nhà cung cấp thực sự. Chúng có thể tiêu tốn token,
+phát sinh chi phí, tính vào giới hạn tần suất và thất bại giống như các yêu cầu mô hình
+khác.
+
+- Khoảng thời gian nhàn rỗi ngắn hơn làm tăng số lượng yêu cầu.
+- Thời lượng dài hơn cho phép nhiều yêu cầu làm ấm hơn.
+- Chỉ bật làm ấm khi lợi ích ở phía nhà cung cấp của nó xứng đáng với mức sử dụng tăng
+  thêm.
+
+Ví dụ, các giá trị mặc định cho phép tối đa bảy lần thử làm ấm trong một cửa sổ 30 phút
+liên tục: vào phút thứ 4, 8, 12, 16, 20, 24 và 28.
+
+## Tắt
+
+Đặt `warming` thành `false` để tắt nó một cách tường minh. Bỏ qua trường này cũng để lại
+tính năng làm ấm ở trạng thái tắt.
+
+```jsonc title="opencode.jsonc"
+{
+  "warming": false,
+}
+```

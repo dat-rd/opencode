@@ -1,0 +1,271 @@
+---
+title: "Giao diện"
+---
+
+Chọn một giao diện từ terminal UI bằng cách nhấn `Ctrl+P`, chọn **Open settings**, rồi mở
+**Theme**. Bạn cũng có thể đặt trực tiếp trong cấu hình CLI toàn cục:
+
+```json title="~/.config/opencode/cli.json"
+{
+  "theme": {
+    "name": "tokyonight",
+    "mode": "system"
+  }
+}
+```
+
+Giao diện thuộc về client terminal. Hãy đặt lựa chọn giao diện trong `cli.json`, không phải
+`opencode.json`. Xem [Cài đặt CLI](/cli/config) để biết vị trí cấu hình và các cài đặt
+terminal khác.
+
+## Chế độ
+
+Dùng `system` để theo giao diện của terminal, hoặc khóa giao diện ở một chế độ:
+
+```json title="~/.config/opencode/cli.json"
+{
+  "theme": {
+    "name": "opencode",
+    "mode": "dark"
+  }
+}
+```
+
+| Giá trị    | Hành vi                                      |
+| -------- | --------------------------------------------- |
+| `system` | Theo chế độ sáng hoặc tối của terminal. |
+| `dark`   | Luôn dùng giao diện tối.                   |
+| `light`  | Luôn dùng giao diện sáng.                  |
+
+Nếu một giao diện tùy chỉnh chỉ cung cấp một chế độ, OpenCode sẽ dùng chế độ đó khi chế độ
+kia được yêu cầu.
+
+## Tích hợp sẵn
+
+Chọn một giao diện tích hợp sẵn theo tên của nó:
+
+```json title="~/.config/opencode/cli.json"
+{
+  "theme": {
+    "name": "catppuccin"
+  }
+}
+```
+
+Các giao diện khả dụng gồm:
+
+- `aura`, `ayu`, `carbonfox`, `cobalt2`, `cursor`, `dracula`, `everforest`, `flexoki`
+- `catppuccin`, `catppuccin-frappe`, `catppuccin-macchiato`
+- `github`, `gruvbox`, `kanagawa`, `material`, `matrix`, `mercury`, `monokai`, `nightowl`, `nord`
+- `one-dark`, `opencode`, `orng`, `lucent-orng`, `osaka-jade`, `palenight`, `rosepine`
+- `solarized`, `synthwave84`, `tokyonight`, `vercel`, `vesper`, `zenburn`
+
+Giao diện `system` khả dụng khi OpenCode đọc được bảng màu của terminal.
+
+## Tệp
+
+Để tạo một giao diện toàn cục tên `ocean`, hãy dùng công cụ giao diện để tạo một tệp đầy
+đủ trong thư mục giao diện toàn cục. Cấu trúc liên quan của nó trông như sau:
+
+```json title="~/.config/opencode/themes/ocean.json (excerpt)"
+{
+  "base": {
+    "text": {
+      "base": "#d8f3ff"
+    }
+  },
+  "dark": {
+    "hue": {
+      "accent": "$hue.cyan"
+    }
+  }
+}
+```
+
+Sau đó chọn `ocean` trong cài đặt hoặc đặt `theme.name` thành `ocean` trong `cli.json`.
+Tên tệp, không có `.json`, chính là tên giao diện.
+
+| Phạm vi   | Thư mục                                  |
+| ------- | ------------------------------------------ |
+| Toàn cục  | `~/.config/opencode/themes/`               |
+| Dự án | `.opencode/themes/` trong cây thư mục dự án    |
+
+OpenCode chỉ đọc các tệp `.json`. Một giao diện gần thư mục hiện tại hơn sẽ thay thế giao
+diện toàn cục hoặc giao diện ở thư mục cha có cùng tên.
+
+## Định dạng
+
+Mọi giao diện V2 khai báo một cây token `base` đầy đủ và ít nhất một bảng màu hue `light`
+hoặc `dark`. Các chế độ chỉ kế thừa từ base của tệp đó; chúng không kế thừa từ giao diện
+OpenCode tích hợp sẵn hay từ lẫn nhau. Hãy dùng công cụ giao diện để tạo một base đầy
+đủ trước khi tùy chỉnh.
+
+Các ví dụ bên dưới chỉ hiển thị những phần liên quan đến từng khái niệm; chúng không
+phải là tệp giao diện đầy đủ.
+
+```json title="themes/ocean.json"
+{
+  "base": {
+    "text": {
+      "base": "#16324f"
+    }
+  },
+  "light": {
+    "hue": {}
+  },
+  "dark": {
+    "hue": {},
+    "text": { "base": "#d8f3ff" }
+  }
+}
+```
+
+## Màu sắc
+
+Dùng một màu hex, `transparent`, hoặc một tham chiếu tới một màu giao diện khác:
+
+```json title="themes/ocean.json"
+{
+  "base": {
+    "text": {
+      "base": "#d8f3ff",
+      "muted": "$hue.neutral.400"
+    },
+    "background": {
+      "base": "transparent"
+    }
+  }
+}
+```
+
+Giá trị hex có thể dùng 3, 4, 6 hoặc 8 chữ số. Tham chiếu bắt đầu bằng `$`; tham chiếu hue
+dùng dạng `$hue.<name>.<step>`.
+
+## Hue
+
+Ghi đè một bí danh hue để thay đổi cả nhóm màu liên quan cùng lúc:
+
+```json title="themes/ocean.json"
+{
+  "base": {
+    "categorical": ["accent", "purple", "green"]
+  },
+  "dark": {
+    "hue": {
+      "accent": "$hue.cyan",
+      "interactive": "$hue.blue"
+    }
+  }
+}
+```
+
+| Loại    | Giá trị                                                               |
+| ------- | -------------------------------------------------------------------- |
+| Cơ sở    | `gray`, `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple` |
+| Bí danh   | `accent`, `interactive`, `neutral`                                 |
+| Bậc    | `100`, `200`, `300`, `400`, `500`, `600`, `700`, `800`, `900`      |
+
+Các bậc hue đi theo hướng tương phản của chế độ: giao diện sáng chạy từ tối ở `100` đến
+sáng ở `900`, còn giao diện tối chạy từ sáng ở `100` đến tối ở `900`.
+
+`categorical` đặt các hue có thứ tự dùng để phân biệt các tác nhân và các mục lặp lại
+khác. Nó phải chứa ít nhất một hue cơ sở hoặc một bí danh.
+
+## Trạng thái
+
+Dùng các khóa trạng thái để thay đổi màu tương tác. Các trạng thái không được chỉ định sẽ
+dùng giá trị cơ sở gần nhất:
+
+```json title="themes/ocean.json"
+{
+  "base": {
+    "text": {
+      "action": {
+        "primary": {
+          "base": "$hue.interactive.400",
+          "$hovered": "$hue.interactive.300",
+          "$disabled": "$hue.neutral.600"
+        }
+      }
+    }
+  }
+}
+```
+
+| Nhóm     | Giá trị                                                    |
+| --------- | --------------------------------------------------------- |
+| Hành động   | `primary`, `secondary`, `destructive`                     |
+| Trạng thái    | `$hovered`, `$focused`, `$pressed`, `$selected`, `$disabled` |
+
+Các trường biểu mẫu dùng cùng các khóa trạng thái đó, trực tiếp dưới `text.formfield` hoặc
+`background.formfield`.
+
+## Token
+
+`base` đầy đủ chứa mọi nhóm token. Một chế độ có thể ghi đè bất kỳ phần nào của nó sau khi
+cung cấp bảng màu hue đầy đủ:
+
+```json title="themes/ocean.json"
+{
+  "base": {
+    "border": {
+      "base": "$hue.neutral.700"
+    },
+    "syntax": {
+      "comment": "$hue.neutral.500",
+      "keyword": "$hue.accent.400"
+    },
+    "diff": {
+      "text": {
+        "added": "$hue.green.400",
+        "removed": "$hue.red.400"
+      }
+    }
+  }
+}
+```
+
+| Nhóm        | Mục đích                                                       |
+| ------------ | ------------------------------------------------------------- |
+| `text`       | Văn bản cơ sở, mờ, hành động, trường biểu mẫu và phản hồi         |
+| `background` | Nền cơ sở, bề mặt, hành động, trường biểu mẫu và lớp tô phản hồi    |
+| `border`     | Đường viền                                                       |
+| `scrollbar`  | Thanh cuộn                                                    |
+| `diff`       | Màu cho dòng thêm, dòng bị xóa, ngữ cảnh, làm nổi bật và số dòng     |
+| `syntax`     | Tô sáng mã nguồn                                      |
+| `markdown`   | Các phần tử Markdown                                              |
+
+Các khóa syntax là `comment`, `keyword`, `function`, `variable`, `string`, `number`, `type`,
+`operator` và `punctuation`. Các khóa Markdown là `text`, `heading`, `link`, `linkText`,
+`code`, `blockQuote`, `emphasis`, `strong`, `horizontalRule`, `listItem`, `listEnumeration`,
+`image`, `imageText` và `codeBlock`.
+
+## Bề mặt nâng cao
+
+Bảng, hộp thoại, menu và toast chọn độ sâu của chúng từ `background.raised`. Hộp thoại còn
+hỗ trợ một bề mặt ngữ cảnh `@dialog`. TUI phân giải lại bảng màu sau khi áp dụng
+`@dialog`, nên các token tham chiếu `$background.base` sẽ theo nền của hộp thoại:
+
+```json title="themes/ocean.json"
+{
+  "base": {
+    "background": {
+      "base": "#071521",
+      "raised": {
+        "base": "#0c1f2e",
+        "high": "#102a3c",
+        "max": "#16364b"
+      }
+    },
+    "@dialog": {
+      "background": {
+        "base": "$background.raised.base"
+      }
+    }
+  }
+}
+```
+
+`@dialog` chấp nhận cùng các nhóm token như chế độ cơ sở. `base` ngữ cảnh của một hành
+động cũng trở thành giá trị dự phòng cho các trạng thái không được chỉ định của nó; một
+ghi đè trạng thái tường minh vẫn thắng.

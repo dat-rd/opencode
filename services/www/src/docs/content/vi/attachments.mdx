@@ -1,0 +1,162 @@
+---
+title: "Tệp đính kèm"
+---
+
+## Đính kèm
+
+Đính kèm một tệp cục bộ, rồi nhờ OpenCode dùng nó trong lời nhắc của bạn. Trong client
+desktop hoặc web, hãy chọn **Attach file**, dán một tệp, hoặc kéo tệp đó vào lời nhắc.
+
+```text
+Summarize the attached README.md and list the required setup steps.
+```
+
+Các lựa chọn trong hộp chọn tệp của desktop có thể tổng cộng tới 20 MiB. Các giao diện
+khác có thể áp dụng giới hạn thấp hơn ở phía client.
+
+<Callout type="warning">
+  Hãy chọn một mô hình có đầu vào hình ảnh trước khi đính kèm một hình ảnh. OpenCode có thể chuyển các hình ảnh được hỗ trợ cho nhà cung cấp, nhưng nhà
+  cung cấp và mô hình vẫn áp dụng định dạng, kích thước, số tệp và dung lượng riêng của chúng. Một mô hình chỉ nhận văn bản có thể từ chối
+  yêu cầu.
+</Callout>
+
+## Cú pháp
+
+Đầu vào lời nhắc và lệnh trong V2 mô tả một tệp đính kèm bằng một `uri` cùng `name` và
+`description` tùy chọn:
+
+```json
+{
+  "uri": "file:///home/me/project/src/server.ts",
+  "name": "server.ts",
+  "description": "HTTP server entrypoint"
+}
+```
+
+Dùng URL `file:` tuyệt đối cho một tệp hoặc thư mục mà máy chủ có thể truy cập. Với các
+tệp văn bản, tham số `start` và `end` dương chọn các dòng đánh số từ 1.
+
+```text
+file:///home/me/project/src/server.ts?start=20&end=60
+```
+
+Dùng URL `data:` để gửi nội dung nội tuyến:
+
+```json
+{
+  "uri": "data:text/plain;base64,SGVsbG8sIE9wZW5Db2RlIQ==",
+  "name": "greeting.txt"
+}
+```
+
+Các URL đính kèm HTTP và HTTPS không được hỗ trợ. Xem
+[tài liệu API](/api) được sinh ra để biết cách gửi lời nhắc theo chương trình.
+
+## Định dạng
+
+Các phiên V2 hiện tại làm cho những loại tệp đính kèm sau hiển thị được với mô hình:
+
+| Đầu vào                   | Mô hình nhận                                                 | Ví dụ            |
+| ----------------------- | -------------------------------------------------------------- | ------------------ |
+| Tệp văn bản UTF-8         | Tên tệp và văn bản đã giải mã                                      | `README.md`        |
+| Thư mục               | Danh sách không đệ quy các tệp và thư mục trực tiếp       | `file:///home/me/` |
+| PNG, JPEG, GIF hoặc WebP | Media hình ảnh                                                    | `diagram.png`      |
+
+SVG được coi là văn bản. Các tệp đính kèm nhị phân trong lời nhắc như PDF, AVIF, BMP,
+audio, video và những loại khác không được đưa vào yêu cầu mô hình. Hãy chuyển một tệp
+nhị phân không được hỗ trợ thành văn bản hoặc một hình ảnh được hỗ trợ trước; ví dụ, hãy
+xuất một trang PDF thành `page-1.png` trước khi đính kèm.
+
+OpenCode đọc từng tệp đính kèm trước khi tiếp nhận lời nhắc. Nó từ chối các URL không
+hợp lệ, đường dẫn không đọc được, đường dẫn không phải tệp hoặc thư mục, và các tệp đính
+kèm đã giải mã vượt quá 20 MiB. Loại media được phát hiện từ các byte, nên việc đổi tên
+tệp hoặc đổi loại media của URL `data:` không làm cho một tệp nhị phân không được hỗ trợ
+trở nên hiển thị được.
+
+## Hình ảnh
+
+Cấu hình chuẩn hóa hình ảnh trong `opencode.json` hoặc `opencode.jsonc`:
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "media": {
+    "image": {
+      "auto_resize": true,
+      "max_width": 2000,
+      "max_height": 2000,
+      "max_base64_bytes": 5242880,
+    },
+  },
+}
+```
+
+Mọi trường đều tùy chọn:
+
+| Trường              | Mặc định   | Hành vi                                                                  |
+| ------------------ | --------- | ------------------------------------------------------------------------- |
+| `auto_resize`      | `true`    | Thay đổi kích thước một hình ảnh vượt quá giới hạn đã cấu hình; khi là `false`, từ chối hình ảnh đó.  |
+| `max_width`        | `2000`    | Chiều rộng tối đa tính bằng pixel; phải là một số nguyên dương.                      |
+| `max_height`       | `2000`    | Chiều cao tối đa tính bằng pixel; phải là một số nguyên dương.                     |
+| `max_base64_bytes` | `5242880` | Số byte tối đa trong hình ảnh đã mã hóa Base64; phải là một số nguyên dương.    |
+
+Ví dụ, cấu hình này từ chối thay vì thay đổi kích thước một hình ảnh rộng hơn 1200 pixel:
+
+```jsonc title="opencode.jsonc"
+{
+  "media": {
+    "image": {
+      "auto_resize": false,
+      "max_width": 1200,
+    },
+  },
+}
+```
+
+Các cài đặt này áp dụng cho cả những hình ảnh được hỗ trợ đính kèm vào lời nhắc lẫn những
+hình ảnh do công cụ `read` tích hợp sẵn trả về.
+
+## Xử lý
+
+Công cụ `read` nhận diện PNG, JPEG, GIF và WebP theo nội dung của chúng và đọc tối đa
+20 MiB dữ liệu hình ảnh nguồn. Nó kiểm tra chiều rộng, chiều cao và độ dài Base64 so với các
+giới hạn hình ảnh đã cấu hình.
+
+Với `auto_resize: true`, OpenCode giữ nguyên tỷ lệ khung hình và thu nhỏ về các giới hạn
+kích thước. Sau đó nó thử các bản mã hóa PNG và JPEG nhỏ dần cho tới khi đạt giới hạn
+Base64, nên loại media đầu ra có thể thay đổi.
+
+```text
+Input:  4000 × 2000 WebP
+Limits: 2000 × 2000
+Output: 2000 × 1000 PNG or JPEG
+```
+
+Nếu không có bản mã hóa nào phù hợp, xử lý sẽ thất bại. Với `auto_resize: false`, một hình
+ảnh vượt quá bất kỳ giới hạn nào sẽ thất bại mà không bị sửa đổi; một hình ảnh không giải
+mã được cũng thất bại.
+
+```text
+Input:  2400 × 1600 JPEG
+Limit:  max_width = 2000, auto_resize = false
+Result: Image processing fails
+```
+
+Nếu bộ thay đổi kích thước hình ảnh không khả dụng, OpenCode truyền nguyên vẹn hình ảnh
+gốc. Vì vậy các cài đặt hình ảnh là giới hạn xử lý, không phải ranh giới tải lên hay bảo
+mật.
+
+## Giới hạn
+
+| Giới hạn                         | Giá trị hoặc hành vi                                             | Ví dụ                                      |
+| ----------------------------- | ------------------------------------------------------------- | -------------------------------------------- |
+| Đính kèm trực tiếp             | 20 MiB đã giải mã cho mỗi mục; client có thể áp đặt giới hạn thấp hơn      | Hai tệp 12 MiB vượt qua giới hạn mỗi mục     |
+| Lựa chọn trong hộp chọn tệp của desktop      | 20 MiB tổng cộng                                                  | Hai tệp 12 MiB vượt quá giới hạn lựa chọn  |
+| `max_base64_bytes`            | Chỉ phần Base64 đã mã hóa, không tính URL `data:` đầy đủ       | `SGVsbG8=` được tính là 8 byte                 |
+| Giới hạn hình ảnh của nhà cung cấp         | Áp dụng sau khi OpenCode xử lý                               | Nhà cung cấp có thể từ chối một hình ảnh đã được chấp nhận      |
+| Hỗ trợ mô hình cho tệp văn bản đính kèm | Không yêu cầu mô hình đa phương thức                           | `notes.txt` được chèn như văn bản lời nhắc       |
+| Giới hạn văn bản của `read`            | Dùng giới hạn phân trang và cắt bớt riêng biệt                    | Đọc một log lớn theo từng trang                    |
+
+Việc một client chấp nhận một tệp không bảo đảm nội dung của tệp đó sẽ đến với mô hình.
+Tệp đính kèm phải dùng định dạng mà mô hình nhìn thấy được và phải thỏa mãn cả giới hạn
+của OpenCode lẫn giới hạn của nhà cung cấp.

@@ -1,0 +1,584 @@
+---
+title: "Migrate từ V1"
+---
+
+Cả OpenCode 1 và OpenCode 2 đều dùng lệnh `opencode` và mặc định không còn được cài đặt song song. Hãy gỡ bản cài đặt V1
+do trình quản lý package quản lý trước khi cài V2; trình cài đặt curl của V2 sẽ thay thế binary của V1.
+
+## Thay đổi phá vỡ
+
+V2 có ba thay đổi phá vỡ có chủ đích:
+
+- [Tiện ích mở rộng](/build/plugins/migrate-v1) dùng một tiện ích mở rộng API mới.
+- [API máy chủ và client](#server-api-and-clients) có những hợp đồng mới.
+- [Cấu hình client terminal](/cli/config) chuyển từ các tệp `tui.json(c)` phân lớp sang một tệp `cli.json` toàn cục (được tự
+  động migrate).
+
+Chức năng V1 được hỗ trợ ngoài các lĩnh vực đó vẫn được kỳ vọng là còn tương thích với V1. Một số trường được schema V1
+chấp nhận nhưng chưa từng có bản tương đương trong V2 và bị bỏ qua có chủ đích; chúng được liệt kê trong [Các trường được
+chấp nhận nhưng không được hỗ trợ](#accepted-but-unsupported-fields).
+
+Các trường cấu hình máy chủ được hỗ trợ, định nghĩa tác nhân, định nghĩa lệnh, kỹ năng và các tệp khác hiện có trong
+`.opencode/` vẫn nên tiếp tục hoạt động mà không cần thay đổi. Nếu hành vi được hỗ trợ mô tả trong hướng dẫn này ngừng
+hoạt động trong V2, hãy coi đó là lỗi tương thích chứ không phải một yêu cầu migrate dự kiến.
+
+<Callout type="tip">
+  Nếu chức năng V1 được hỗ trợ không hoạt động trong V2, hãy làm theo hướng dẫn báo lỗi trong
+  [Khắc phục sự cố](/troubleshooting) và gửi một issue về tương thích.
+</Callout>
+
+## Cài đặt V2
+
+Cài client terminal của V2 bằng [hướng dẫn khởi động terminal](/cli).
+
+Bạn không cần viết lại mọi thứ trước khi bắt đầu với V2. Một lộ trình migrate thực tế là:
+
+1. Giữ cấu hình và các định nghĩa dựa trên tệp hiện có của bạn.
+2. Khởi động V2 và kiểm tra mô hình, thông tin đăng nhập, tác nhân, quyền và MCP server.
+3. Chuyển các tiện ích mở rộng, vì các bản triển khai tiện ích mở rộng của V1 không chạy được trong V2.
+4. Chuyển các tích hợp gọi API máy chủ.
+5. Chuyển đổi cấu hình sang dạng gốc của V2 khi bạn đã sẵn sàng. Bước này là tùy chọn.
+
+Hãy giữ lại một bản sao thiết lập V1 trong khi kiểm tra việc migrate. V1 và V2 dùng cùng các vị trí cấu hình, vì vậy đừng
+trỏ V1 tới các tệp đã chuyển sang dạng chỉ dùng được ở V2.
+
+## Cấu hình
+
+Mục này đề cập cả cấu hình JSON/JSONC và các định nghĩa dựa trên tệp trong `.opencode/`.
+
+### Dùng cấu hình hiện có của bạn
+
+V2 đọc cấu hình hệ thống, toàn cục và dự án hiện có từ cùng các vị trí như V1:
+
+```text
+/Library/Application Support/opencode/opencode.json(c)
+/etc/opencode/opencode.json(c)
+%ProgramData%\opencode\opencode.json(c)
+/Library/Managed Preferences/<user>/ai.opencode.managed.plist
+/Library/Managed Preferences/ai.opencode.managed.plist
+~/.config/opencode/opencode.json(c)
+<project>/opencode.json(c)
+<project>/.opencode/opencode.json(c)
+```
+
+V2 đọc chính các vị trí đó. Nó chuẩn hóa các trường V1 được hỗ trợ và các trường gốc của V2 trong bộ nhớ mà không viết
+lại tệp nguồn. Cấu hình V1 được hỗ trợ hiện có vẫn được kỳ vọng là tiếp tục hoạt động, vì vậy bạn không cần chuyển đổi nó
+để thử hay chuyển sang dùng V2.
+
+Giống như V1, cấu hình hệ thống và managed preference của macOS có độ ưu tiên cao nhất, nên cài đặt của chúng ghi đè các
+tệp toàn cục và dự án. [Chính sách](/policies#precedence) của chúng, gồm cả `enabled_providers` và `disabled_providers`
+đã được migrate, cũng vượt trên chính sách toàn cục và dự án. Ghi đè một cài đặt không thể ngăn người dùng thêm nhà cung
+cấp, MCP server, tác nhân hoặc tiện ích mở rộng, vì vậy hãy thể hiện các hạn chế do quản trị viên áp dụng dưới dạng `policies` thay
+vì các cài đặt thông thường như `permissions`.
+
+### Nhờ OpenCode migrate
+
+Định dạng cấu hình V1 vẫn được hỗ trợ. Định dạng gốc của V2 là tùy chọn và giúp một số cài đặt rõ ràng và dễ dùng hơn.
+
+Lộ trình migrate được khuyến nghị là nhờ OpenCode cập nhật cấu hình giúp bạn:
+
+```text
+Migrate my OpenCode configuration, including file-based definitions, from the V1 format to the native V2 format.
+Preserve its behavior and all unrelated settings.
+```
+
+OpenCode có thể kiểm tra toàn bộ tệp, áp dụng các thay đổi liên quan bên dưới và tránh viết lại những cài đặt không cần
+thay đổi. Việc chuyển đổi không cần xảy ra cùng lúc: các trường V1 được hỗ trợ và các trường gốc của V2 có thể cùng tồn
+tại ở cấp cao nhất. Khi cả hai dạng đặt cùng một giá trị chuẩn, một giá trị gốc hợp lệ của V2 sẽ được ưu tiên bất kể thứ tự
+khoá JSON.
+
+Việc trộn lẫn lồng nhau bị giới hạn có chủ đích. OpenCode nhận diện các thành phần V1 và V2 trộn lẫn bên trong `mcp`,
+`compaction` và `experimental`, nhưng nó không suy luận định dạng một cách đệ quy bên trong từng tác nhân, nhà cung cấp,
+lệnh hoặc mô hình. Hãy giữ mỗi mục lồng nhau đó hoàn toàn ở một định dạng. Cú pháp V1 được hỗ trợ vẫn im lặng khi đứng
+một mình; các giá trị sai định dạng, trường cũ không được hỗ trợ và giá trị V1/V2 xung đột sẽ tạo cảnh báo trong khi các
+cài đặt hợp lệ không liên quan vẫn tiếp tục được tải.
+
+### Quyền và công cụ
+
+V1 nhóm hiệu ứng quyền theo từng công cụ. V2 dùng một mảng `permissions` có thứ tự, làm cho thứ tự ưu tiên và các ngoại lệ
+trở nên rõ ràng:
+
+```jsonc
+// V1
+{
+  "permission": {
+    "bash": {
+      "git push *": "ask"
+    },
+    "edit": "allow"
+  },
+  "tools": {
+    "websearch": false
+  }
+}
+
+// V2
+{
+  "permissions": [
+    { "action": "shell", "resource": "git push *", "effect": "ask" },
+    { "action": "edit", "resource": "*", "effect": "allow" },
+    { "action": "websearch", "resource": "*", "effect": "deny" }
+  ]
+}
+```
+
+Các hành động quyền cũng thay đổi: `bash` giờ là `shell`, `task` giờ là `subagent`, và `write` cùng `patch` giờ là
+`edit`. Xem [Quyền](/permissions) để biết định dạng quy tắc V2 có thứ tự.
+
+<Callout type="warning">
+  V1 hỏi trước khi truy cập các đường dẫn bên ngoài dự án. V2 thì không: `external_directory` được cho phép theo mặc định. Để
+  giữ hành vi của V1, hãy thêm `{ "action": "external_directory", "resource": "*", "effect": "ask" }` vào `permissions`.
+</Callout>
+
+### Tác nhân và chế độ
+
+Bản đồ `agent` (số ít) và `mode` (đã không dùng) trở thành `agents`. Các trường của tác nhân trở nên nhất quán hơn với phần
+còn lại của cấu hình V2:
+
+```jsonc
+// V1
+{
+  "agent": {
+    "reviewer": {
+      "prompt": "Review for correctness and missing tests.",
+      "model": "anthropic/claude-sonnet-4-5",
+      "variant": "high",
+      "disable": false,
+      "permission": {
+        "edit": "deny"
+      }
+    }
+  }
+}
+
+// V2
+{
+  "agents": {
+    "reviewer": {
+      "system": "Review for correctness and missing tests.",
+      "model": "anthropic/claude-sonnet-4-5#high",
+      "disabled": false,
+      "permissions": [
+        { "action": "edit", "resource": "*", "effect": "deny" }
+      ]
+    }
+  }
+}
+```
+
+`prompt` trở thành `system`, `disable` trở thành `disabled`, và `variant` riêng biệt được nối vào tham chiếu mô hình sau
+dấu `#`. `temperature`, `top_p` và `options` riêng của nhà cung cấp chuyển xuống dưới `request.body`. `maxSteps` trở thành
+`steps`. Các mục từ bản đồ `mode` cũ trở thành tác nhân chính.
+
+### Snapshots
+
+Đổi tên trường `snapshot` (số ít) thành `snapshots`. Giá trị boolean của nó không thay đổi:
+
+```jsonc
+// V1
+{ "snapshot": false }
+
+// V2
+{ "snapshots": false }
+```
+
+### Media
+
+Đổi tên đối tượng `attachment` (số ít) thành `media`. Các cài đặt hình ảnh lồng nhau giữ nguyên tên:
+
+```jsonc
+// V1
+{ "attachment": { "image": { "auto_resize": true } } }
+
+// V2
+{ "media": { "image": { "auto_resize": true } } }
+```
+
+### MCP server
+
+V2 gom các server dưới `mcp.servers`, thay `enabled` bằng `disabled` đảo ngược, và tách riêng mục đích của timeout:
+
+```jsonc
+// V1
+{
+  "mcp": {
+    "playwright": {
+      "type": "local",
+      "command": ["npx", "@playwright/mcp"],
+      "enabled": true,
+      "timeout": 30000
+    }
+  }
+}
+
+// V2
+{
+  "mcp": {
+    "servers": {
+      "playwright": {
+        "type": "local",
+        "command": ["npx", "@playwright/mcp"],
+        "disabled": false,
+        "timeout": {
+          "catalog": 30000,
+          "execution": 30000
+        }
+      }
+    }
+  }
+}
+```
+
+Các trường OAuth từ xa dùng kiểu snake_case: `clientId` trở thành `client_id`, `clientSecret` trở thành `client_secret`,
+`callbackPort` trở thành `callback_port`, và `redirectUri` trở thành `redirect_uri`. Giá trị `experimental.mcp_timeout` của
+V1 cũng trở thành giá trị mặc định của `mcp.timeout.catalog` và `mcp.timeout.execution`. Xem [MCP server](/mcp-servers).
+
+### Compaction
+
+V2 gom ngân sách token cho ngữ cảnh được giữ lại dưới `keep` và đặt tên rõ ràng hơn cho phần dự trữ:
+
+```jsonc
+// V1
+{
+  "compaction": {
+    "preserve_recent_tokens": 8000,
+    "reserved": 20000
+  }
+}
+
+// V2
+{
+  "compaction": {
+    "keep": {
+      "tokens": 8000
+    },
+    "buffer": 20000
+  }
+}
+```
+
+`auto` giữ nguyên tên. V2 không có trường gốc `tail_turns` hay `prune`; cả hai trường cũ đều bị bỏ qua kèm cảnh báo. Thay vào
+đó, ngữ cảnh gần đây được giữ lại theo ngân sách token. Xem [Compaction](/compaction).
+
+### Kỹ năng
+
+V1 tách riêng các đường dẫn kỹ năng bổ sung và URL. V2 gộp cả hai thành một mảng có thứ tự:
+
+```jsonc
+// V1
+{
+  "skills": {
+    "paths": ["./team-skills"],
+    "urls": ["https://example.com/skills/"]
+  }
+}
+
+// V2
+{
+  "skills": ["./team-skills", "https://example.com/skills/"]
+}
+```
+
+Các tệp kỹ năng hiện có và việc tự động khám phá `.opencode/skills/` không thay đổi. Xem [Kỹ năng](/skills).
+
+### Lệnh
+
+Đổi tên bản đồ `command` (số ít) thành `commands` và `subtask` thành `subagent`. Nối `variant` của mô hình riêng biệt
+vào tham chiếu mô hình:
+
+```jsonc
+// V1
+{
+  "command": {
+    "review": {
+      "template": "Review the current changes.",
+      "model": "anthropic/claude-sonnet-4-5",
+      "variant": "high",
+      "subtask": true
+    }
+  }
+}
+
+// V2
+{
+  "commands": {
+    "review": {
+      "template": "Review the current changes.",
+      "model": "anthropic/claude-sonnet-4-5#high",
+      "subagent": true
+    }
+  }
+}
+```
+
+`template`, `description` và `agent` giữ nguyên tên. `subtask` cũ vẫn được chấp nhận; các lệnh được ủy quyền giờ tự động
+chạy ở nền và báo kết quả về phiên cha. Các định nghĩa lệnh Markdown hiện có vẫn được hỗ trợ.
+Xem [Lệnh](/commands).
+
+### Tham chiếu
+
+Đổi tên bản đồ `reference` (số ít, đã không dùng) thành `references`:
+
+```jsonc
+// V1
+{ "reference": { "docs": "../docs" } }
+
+// V2
+{ "references": { "docs": "../docs" } }
+```
+
+V1 đã chấp nhận `references`, nên không cần thay đổi gì nếu tệp dùng khóa đó. Các mục tham chiếu giữ nguyên cấu trúc. Xem
+[Tham chiếu](/references).
+
+### Nhà cung cấp
+
+Đổi tên bản đồ `provider` (số ít) thành `providers`. V2 tách riêng package runtime, endpoint và cài đặt request:
+
+```jsonc
+// V1
+{
+  "provider": {
+    "acme": {
+      "npm": "@ai-sdk/openai-compatible",
+      "api": "https://llm.example.com/v1",
+      "options": {
+        "apiKey": "{env:ACME_API_KEY}"
+      }
+    }
+  }
+}
+
+// V2
+{
+  "providers": {
+    "acme": {
+      "package": "aisdk:@ai-sdk/openai-compatible",
+      "settings": {
+        "baseURL": "https://llm.example.com/v1",
+        "apiKey": "{env:ACME_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+`npm` của V1 trở thành `package`, và các package AI SDK được thêm tiền tố `aisdk:`. `api` trở thành
+`settings.baseURL`. `options` của nhà cung cấp được tách thành `settings`, `headers` và `body` theo vai trò của chúng
+trong request. `options.setCacheKey` trở thành `compatibility.supportsPromptCacheKey` trên nhà cung cấp. Xem
+[Nhà cung cấp](/providers).
+
+V2 hợp nhất hai namespace nhà cung cấp cũ:
+
+| V1 nhà cung cấp ID             | ID nhà cung cấp chuẩn của V2 |
+| -------------------------- | ---------------------------- |
+| `azure-cognitive-services` | `azure`                      |
+| `google-vertex-anthropic`  | `google-vertex`              |
+
+Việc migrate các trường nhà cung cấp, tác nhân, lệnh và bộ lọc nhà cung cấp không mập mờ của V1 dùng các ID chuẩn này. Trường
+`model` ở cấp cao nhất dùng chung giữ nguyên ID nhà cung cấp chính xác vì cú pháp đó vẫn hợp lệ trong cấu hình gốc của V2;
+hãy cập nhật trường đó sang ID chuẩn khi migrate một nhà cung cấp tích hợp cũ.
+
+### Mô hình và biến thể
+
+Mô hình vẫn nằm lồng dưới nhà cung cấp của chúng, nhưng một số trường mô hình trở nên rõ ràng hơn:
+
+- `id` trở thành `modelID`.
+- `tool_call` và `modalities` trở thành `capabilities.tools`, `capabilities.input` và `capabilities.output`.
+- Một `status` là `"deprecated"` trở thành `disabled: true`.
+- Chi phí bộ nhớ đệm chuyển từ `cache_read` và `cache_write` sang `cache.read` và `cache.write`.
+- `options` riêng của nhà cung cấp trở thành `settings`.
+- Đối tượng variants của V1 trở thành một mảng của V2 với `id` trên mỗi mục.
+
+```jsonc
+// V1
+{
+  "variants": {
+    "high": {
+      "reasoningEffort": "high"
+    }
+  }
+}
+
+// V2
+{
+  "variants": [
+    {
+      "id": "high",
+      "settings": {
+        "reasoningEffort": "high"
+      }
+    }
+  ]
+}
+```
+
+Xem [Mô hình](/models) để biết cấu trúc mô hình gốc đầy đủ.
+
+### Các trường được hỗ trợ không có bản tương đương gốc
+
+Hầu hết các trường giữ nguyên cấu trúc, gồm `shell`, `model`, `default_agent`, `watcher`, `formatter`, `instructions`,
+`enterprise` và `tool_output`, không cần migrate.
+
+V2 chấp nhận và giữ nguyên cấu hình `lsp`, nhưng nó không chạy language server, không cung cấp LSP công cụ và không tạo chẩn
+đoán LSP. Hãy thay các quy trình phụ thuộc vào những khả năng đó bằng các lệnh lint, typecheck hoặc compiler của dự án.
+
+Các bộ lọc nhà cung cấp của V1 không có trường cấu hình V2 gốc tương ứng một-một, nhưng hành vi của chúng vẫn được hỗ trợ
+thông qua [chính sách](/policies):
+
+- `enabled_providers` trở thành một chính sách nhà cung cấp nội bộ mặc định là chặn, sau đó là các quy tắc cho phép cho các nhà cung cấp được liệt kê.
+- `disabled_providers` trở thành các chính sách chặn nội bộ cho các nhà cung cấp được liệt kê.
+- `autoupdate` trở thành `update`: `false` ánh xạ thành `"disable"`, `"notify"` ánh xạ thành `"notify"`, và `true` ánh xạ thành `"auto"`.
+- `small_model` trở thành lựa chọn `model` cho tác nhân `title` tích hợp. Cấu hình gốc của V2 nên dùng `agents.title.model` thay thế.
+
+Bạn có thể giữ các trường này ở cú pháp V1. OpenCode chuẩn hóa chúng mà không cảnh báo.
+
+### Các trường được chấp nhận nhưng không được hỗ trợ
+
+Schema V1 cũng chấp nhận các trường không có hành vi V2 nào được hỗ trợ. V2 bỏ qua những giá trị này và phát ra cảnh báo để
+chúng không bị nhầm là cấu hình đang hoạt động:
+
+- `logLevel`: dùng `OPENCODE_LOG_LEVEL` khi khởi động OpenCode.
+- `server`: dùng service của V2 và các tùy chọn server tường minh; server API là một thay đổi phá vỡ có chủ đích.
+- `subagent_depth` ở cấp cao nhất: dùng `experimental.subagent_depth` thay thế.
+- `compaction.tail_turns` và `compaction.prune`: V2 dùng `compaction.keep.tokens` và compaction dựa trên checkpoint thay thế.
+- Trường `name` của tác nhân bên trong cấu hình JSON của V1.
+- Một mục MCP của V1 chỉ bật mà không có `type`.
+- Các trường thử nghiệm của V1 gồm `batch_tool`, `openTelemetry`, `primary_tools` và `continue_loop_on_deny`.
+- Các trường nhà cung cấp của V1 gồm `id`, `whitelist` và `blacklist`.
+- Các trường mô hình của nhà cung cấp V1 gồm `release_date`, `attachment`, `reasoning`, `temperature`, `experimental`,
+  `status` không phải `deprecated`, và giá trị boolean `interleaved`.
+
+Việc bỏ qua các trường này là có chủ đích và không phải là hồi quy tương thích. Nếu V2 không giữ được hành vi được mô tả là
+được hỗ trợ ở nơi khác trong hướng dẫn này, hãy làm theo hướng dẫn báo lỗi trong [Khắc phục
+sự cố](/troubleshooting).
+
+### Tệp tác nhân
+
+Các tệp tác nhân của V1 có thể dùng `agent/`, `agents/`, `mode/` hoặc `modes/`. V2 vẫn khám phá cả bốn thư mục. Vị trí
+được khuyến nghị trong V2 là:
+
+```text
+.opencode/agents/<name>.md
+```
+
+Các tệp trong thư mục `mode/` hoặc `modes/` của V1 đại diện cho các tác nhân chính. Khi chuyển một tệp vào `agents/`, hãy
+thêm `mode: primary` vào frontmatter của nó. Các tệp trong `agent/` có thể chuyển sang `agents/` mà không cần đổi ID dựa
+trên đường dẫn.
+
+Khi chuyển frontmatter sang các trường gốc của V2:
+
+- Giữ phần thân Markdown làm system instructions của tác nhân.
+- Đổi tên `prompt` thành `system` khi nó xuất hiện trong cấu hình JSON; phần thân tệp không cần trường `system`.
+- Đổi tên `disable` thành `disabled` và `permission` thành `permissions`.
+- Nối `model` và `variant` thành `provider/model#variant`.
+- Chuyển `temperature`, `top_p` và các tùy chọn riêng của nhà cung cấp xuống dưới `request.body`.
+
+V2 tự động dịch frontmatter tác nhân cũ, nên các chỉnh sửa này là tùy chọn. Xem [Tác nhân](/agents).
+
+### Tệp lệnh
+
+Các tệp lệnh của V1 có thể dùng `command/` hoặc `commands/`. V2 khám phá cả hai. Vị trí được khuyến nghị là:
+
+```text
+.opencode/commands/<name>.md
+```
+
+Chuyển các tệp từ `command/` sang cùng đường dẫn tương đối dưới `commands/` để giữ nguyên tên lệnh. Phần thân Markdown vẫn
+là template của lệnh, và các trường frontmatter `description` và `agent` giữ nguyên tên. Đổi tên `subtask` thành
+`subagent` để dùng tên gốc cho việc ủy quyền ở nền. Nếu frontmatter có các trường `model` và `variant` riêng biệt, hãy nối
+biến thể vào mô hình và bỏ trường `variant`:
+
+```yaml
+# V1
+model: anthropic/claude-sonnet-4-5
+variant: high
+subtask: true
+
+# V2
+model: anthropic/claude-sonnet-4-5#high
+subagent: true
+```
+
+Xem [Lệnh](/commands).
+
+### Tệp kỹ năng
+
+V2 khám phá kỹ năng từ cả `.opencode/skill/` và `.opencode/skills/`. Cấu trúc được khuyến nghị là:
+
+```text
+.opencode/skills/<skill-id>/SKILL.md
+```
+
+Hãy chuyển toàn bộ thư mục kỹ năng, không chỉ `SKILL.md`, để các script, tài liệu tham chiếu và tệp hỗ trợ tương đối vẫn
+khả dụng. Giữ tên thư mục ổn định để bảo toàn kỹ năng ID. Frontmatter kỹ năng hiện có và phần thân Markdown không cần viết lại
+cho V2. Xem [Kỹ năng](/skills).
+
+### Tệp hướng dẫn
+
+Các tệp `AGENTS.md` hiện có giữ nguyên vị trí. V2 khám phá tệp toàn cục `~/.config/opencode/AGENTS.md` và các tệp
+`AGENTS.md` xung quanh từ thư mục hiện tại lên tới thư mục home. Với các dự án nằm ngoài home, việc khám phá dừng lại
+ở thư mục gốc của dự án.
+
+Nếu thiết lập V1 của bạn dựa vào tệp `CLAUDE.md` dự phòng, hãy chuyển hướng dẫn đó vào tệp `AGENTS.md` tương ứng. Hiện
+V2 chỉ khám phá `AGENTS.md`; vì hành vi V1 ngoài API được kỳ vọng là còn tương thích, bạn cũng nên gửi một issue về tương
+thích kèm chi tiết của dự án bị ảnh hưởng. Xem [Instructions](/instructions).
+
+## Cấu hình client terminal
+
+V2 thay thế các tệp V1 `tui.json(c)` phân lớp bằng một tệp cấu hình client terminal toàn cục:
+
+```text
+~/.config/opencode/cli.json
+```
+
+Client terminal sở hữu tệp này; service nền không tải tệp đó. Khi `cli.json` chưa tồn tại, lần khởi động client terminal V2
+đầu tiên sẽ migrate các cài đặt `tui.json` toàn cục được hỗ trợ và các tùy chọn đã lưu, đồng thời giữ nguyên các tệp V1.
+Cấu hình client cục bộ của dự án không được migrate vì cấu hình client của V2 là toàn cục. Xem [Cài đặt
+CLI](/cli/config) để có tham chiếu về các cài đặt client hiện tại.
+
+## Tiện ích mở rộng
+
+Đổi tên `plugin` thành `plugins`. Thay một cặp package và options bằng một đối tượng:
+
+```jsonc
+// V1
+{
+  "plugin": ["opencode-example-plugin", ["./plugin/local.ts", { "enabled": true }]]
+}
+
+// V2
+{
+  "plugins": [
+    "opencode-example-plugin",
+    {
+      "package": "./plugin/local.ts",
+      "options": { "enabled": true }
+    }
+  ]
+}
+```
+
+V2 khám phá tiện ích mở rộng cục bộ từ cả `.opencode/plugin/` và `.opencode/plugins/`; hãy dùng `.opencode/plugins/` cho các tệp
+của V2.
+
+<Callout type="warning">
+  Các bản triển khai tiện ích mở rộng của V1 không chạy được trong V2. Chỉ di chuyển một tệp hoặc đổi tên mục cấu hình của nó là
+  chưa đủ.
+</Callout>
+
+Chuyển các entrypoint, hook, công cụ, event và export của package với [hướng dẫn migrate
+tiện ích mở rộng](/build/plugins/migrate-v1) riêng.
+
+## API máy chủ và client
+
+OpenCode 2 có một API máy chủ được sửa đổi, dễ dùng hơn và một bộ client mới. Các tích hợp gọi API máy chủ của V1
+phải migrate sang API của V2.
+
+Hãy dùng package `@opencode/client` để truy cập API V2 đã phát hành. Xem [API reference](/api) được sinh tự động để biết
+các endpoint, kiểu request và response của nó.
+
+## Xác minh thiết lập của bạn
+
+Hãy kiểm tra mô hình, thông tin đăng nhập của nhà cung cấp, tác nhân, quyền, MCP server và tiện ích mở rộng của bạn trong một dự án
+trước khi dựa vào V2 cho công việc thường ngày. Giữ lại thiết lập V1 cho đến khi bạn đã xác nhận được hành vi V2 cần
+thiết, và đừng trỏ V1 tới cấu hình mà bạn đã chuyển sang dạng gốc của V2.

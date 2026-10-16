@@ -1,0 +1,105 @@
+---
+title: "Giới thiệu"
+---
+
+Chạy CLI trong một dự án để mở giao diện terminal toàn màn hình:
+
+```bash
+opencode
+```
+
+Truyền một thư mục để làm việc trong dự án khác:
+
+```bash
+opencode ~/code/my-project
+```
+
+Một số terminal nên dùng:
+
+- [Ghostty](https://ghostty.org)
+- [WezTerm](https://wezterm.org)
+- [Alacritty](https://alacritty.org)
+- [Kitty](https://sw.kovidgoyal.net/kitty/)
+
+Hỗ trợ truecolor giúp giao diện hiển thị màu chính xác nhất; terminal không có tính năng này sẽ dùng bảng màu
+xấp xỉ sự khả dụng.
+
+## Tự động hóa
+
+Dùng `opencode run` để gửi lời nhắc mà không mở giao diện tương tác. Lệnh này được thiết kế cho script, job CI và
+những quy trình khác cần nhận kết quả của mô hình ngay trong terminal.
+
+```bash
+opencode run "Explain this repository"
+```
+
+## Mini
+
+Dùng `opencode mini` để khởi động giao diện tương tác tối giản của OpenCode thay vì TUI toàn màn hình.
+
+```bash
+opencode mini
+```
+
+Chạy `opencode mini --help` để xem các tùy chọn về phiên, mô hình, tác nhân, lời nhắc và replay.
+
+## Dịch vụ nền
+
+Mặc định, OpenCode sẽ tìm hoặc khởi động một server nền dùng chung cho tài khoản người dùng của bạn. Mọi client OpenCode cục bộ
+đều kết nối tới server đó, và server này sở hữu các phiên, cấu hình, tích hợp, quyền cũng như việc thực thi công cụ.
+
+Dùng `--standalone` để chạy với một server riêng, hoặc `--server` để kết nối tới một URL server cụ thể:
+
+```bash
+opencode --standalone
+opencode --server http://localhost:4096
+```
+
+Để các lệnh CLI mặc định dùng server riêng thay vì khởi động dịch vụ dùng chung, hãy tắt dịch vụ đó:
+
+```bash
+opencode service set disabled true
+opencode
+```
+
+Thao tác này dừng dịch vụ nền đang chạy. `--server` vẫn kết nối tới server đã chọn tường minh; `opencode service start`
+vẫn có thể khởi động dịch vụ dùng chung. Để trở lại dùng dịch vụ tự động, hãy chạy `opencode service unset disabled`.
+Tính năng ghép nối cần dịch vụ dùng chung và không khả dụng khi dịch vụ bị tắt.
+
+Xem [Khắc phục sự cố](/troubleshooting) để biết cách chẩn đoán dịch vụ dùng chung và [tham khảo API](/api) để xem các
+endpoint của server.
+
+## Đường dẫn
+
+In một đường dẫn cục bộ cụ thể để dùng với công cụ khác:
+
+```bash
+opencode debug paths db
+sqlite3 "$(opencode debug paths db)"
+```
+
+Bộ chọn tùy chọn nhận `db`, `home`, `data`, `config`, `cache`, `state`, `tmp`, `bin`, `log` hoặc `repos` và chỉ in
+đường dẫn kèm một ký tự xuống dòng. Đường dẫn cơ sở dữ liệu phụ thuộc vào kênh phát hành và `OPENCODE_DB`; các đường dẫn cơ sở dữ liệu tương đối
+được phân giải bên trong thư mục dữ liệu, còn `:memory:` được in nguyên văn. Lệnh này không khởi động server cũng không mở cơ sở dữ liệu.
+
+Bỏ qua bộ chọn để hiển thị tất cả đường dẫn kèm nhãn:
+
+```bash
+opencode debug paths
+```
+
+## Gỡ cài đặt
+
+Xem trước các tệp và thư mục cài đặt sẽ bị gỡ bỏ:
+
+```bash
+opencode uninstall --dry-run
+```
+
+Chạy `opencode uninstall` để xác nhận gỡ bỏ. OpenCode dừng các dịch vụ nền đã đăng ký và các terminal bền vững trước khi
+xóa thư mục cache toàn cục, vốn được dùng chung giữa các phiên bản và kênh phát hành của OpenCode. Dữ liệu phiên, cấu hình và
+trạng thái không bao giờ bị gỡ bỏ.
+
+- `--force` (`-f`) bỏ qua bước xác nhận; dùng tùy chọn này khi gỡ bỏ không tương tác.
+- Bản cài đặt qua trình quản lý gói sẽ dùng trình quản lý gói được phát hiện. Bản cài đặt bằng curl sẽ in lệnh cuối cùng để bạn tự
+  gỡ tệp thực thi theo cách thủ công.

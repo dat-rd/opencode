@@ -1,0 +1,140 @@
+---
+title: "Nhà cung cấp"
+description: "Kết nối tài khoản nhà cung cấp và quản lý thông tin đăng nhập từ CLI và TUI."
+---
+
+Kết nối một nhà cung cấp trong TUI, rồi chọn một mô hình của nhà cung cấp đó:
+
+```text
+/connect
+/models
+```
+
+`/connect` liệt kê các tích hợp khả dụng từ server và dự án hiện tại. Chọn một nhà cung cấp, chọn một
+phương thức xác thực khi nó có nhiều hơn một, rồi làm theo các lời nhắc.
+
+## TUI
+
+TUI hỗ trợ API key, OAuth và các lệnh xác thực của nhà cung cấp. OAuth sẽ mở một URL cấp quyền hoặc hiển thị một
+mã để nhập; nhấn `o` để mở URL và `c` để sao chép thông tin cấp quyền.
+
+```text
+/connect
+# Select OpenAI, then Codex device code (legacy).
+```
+
+Chạy lại `/connect` để thêm một tài khoản khác. Chọn một nhà cung cấp đã kết nối sẽ mở danh sách tài khoản của nó, nơi bạn
+có thể kích hoạt, đổi tên hoặc xóa một tài khoản đã lưu.
+
+## CLI
+
+Dùng `auth login` cho cùng các phương thức nhà cung cấp đó mà không cần mở TUI. Khi không có đối số nhà cung cấp, lệnh sẽ mở
+một bộ chọn nhà cung cấp tương tác.
+
+```bash
+opencode auth login
+```
+
+Truyền một ID hoặc tên tích hợp để bỏ qua bộ chọn đầu tiên. Dùng `--method key` để chọn tường minh cách nhập API key.
+
+```bash
+opencode auth login anthropic --method key
+```
+
+ID phương thức phụ thuộc vào từng nhà cung cấp. Chạy lệnh mà không có `--method` để xem các phương thức khả dụng khi một nhà cung cấp có
+nhiều hơn một.
+
+```bash
+opencode auth login openai
+```
+
+Việc nhập API key và các biểu mẫu của nhà cung cấp cần một terminal tương tác. Các phương thức OAuth yêu cầu bạn dán mã
+cấp quyền cũng cần một terminal tương tác.
+
+## Phương thức
+
+OpenCode nhận thông tin đăng nhập của nhà cung cấp qua bốn phương thức tích hợp:
+
+| Method      | Hành vi                                                                                                               |
+| ----------- | --------------------------------------------------------------------------------------------------------------------- |
+| API key     | Nhắc một secret và lưu nó thành một tài khoản nhà cung cấp.                                                           |
+| OAuth       | Cung cấp một URL trình duyệt, mã thiết bị hoặc lời nhắc mã cấp quyền, rồi lưu token và làm mới chúng khi được hỗ trợ. |
+| Lệnh     | Chạy một lệnh xác thực do nhà cung cấp cung cấp và lưu standard output của nó làm một key.                            |
+| Environment | Đọc một biến được hỗ trợ từ tiến trình server mà không lưu lại.                                                       |
+
+Các nhà cung cấp có thể thêm biểu mẫu vào các phương thức API key và OAuth cho những chi tiết bắt buộc như tên tài nguyên Azure hoặc tên miền
+GitHub Enterprise. CLI và TUI hiển thị những biểu mẫu đó trước khi bắt đầu xác thực.
+
+## Môi trường
+
+Đặt biến môi trường được hỗ trợ của một nhà cung cấp trên tiến trình server chạy các yêu cầu mô hình. Với một server riêng dùng một lần,
+hãy truyền nó khi khởi động chế độ standalone.
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-... opencode --standalone
+```
+
+Với server nền dùng chung, hãy thêm biến đó vào môi trường mà nó quản lý. Việc này dừng một dịch vụ đang chạy; lệnh OpenCode
+tiếp theo sẽ khởi động nó với giá trị mới.
+
+```bash
+opencode service set env ANTHROPIC_API_KEY sk-ant-...
+opencode auth list
+```
+
+Các kết nối qua môi trường hiện trong `auth list` với loại `environment`. Chúng không phải là tài khoản: `auth logout` không thể
+gỡ chúng, vì vậy hãy bỏ đặt biến đó để ngắt kết nối. Một tài khoản đã lưu được ưu tiên hơn một kết nối qua môi trường cho
+cùng một tích hợp.
+
+```bash
+opencode auth list
+opencode service unset env ANTHROPIC_API_KEY
+```
+
+Một số nhà cung cấp đám mây còn dùng chuỗi thông tin đăng nhập môi trường xung quanh sẵn có của họ thay vì một biến API key:
+
+- Amazon Bedrock hỗ trợ chuỗi thông tin đăng nhập mặc định của AWS, gồm profile, môi trường access key, web identity
+  và thông tin đăng nhập của container. Nó cũng hỗ trợ `AWS_BEARER_TOKEN_BEDROCK`.
+- Google Vertex dùng Application Default Credentials và một project có thể phân giải được. Ví dụ, xác thực bằng
+  `gcloud auth application-default login` và đặt `GOOGLE_CLOUD_PROJECT`.
+- Azure hiển thị **Microsoft Entra ID (Azure CLI)** như một phương thức kết nối khi `az` đã được cài đặt. Chạy `az login` trước, rồi
+  chọn phương thức đó trong `/connect` hoặc `auth login azure`.
+
+```bash
+gcloud auth application-default login
+GOOGLE_CLOUD_PROJECT=my-project opencode
+```
+
+Xem [Nhà cung cấp](/providers) để biết phần thiết lập riêng cho từng nhà cung cấp và phía server.
+
+## Tài khoản
+
+Mỗi lần đăng nhập API key, OAuth hoặc lệnh thành công sẽ tạo ra một tài khoản đã lưu. Tài khoản mới nhất trở thành tài khoản đang hoạt động; chuyển
+tài khoản đang hoạt động theo nhãn hoặc ID thông tin đăng nhập của nó.
+
+```bash
+opencode auth list
+opencode auth switch anthropic work
+```
+
+Gỡ một tài khoản đã lưu bằng `auth logout`. Cả hai lệnh đều mở bộ chọn khi bỏ qua đối số của chúng.
+
+```bash
+opencode auth logout anthropic work
+```
+
+Trong TUI, `/connect` cung cấp các thao tác thêm, kích hoạt, đổi tên và xóa giống hệt cho các tài khoản đã lưu.
+
+## Lưu trữ
+
+Các API key và OAuth token đã lưu nằm trong cơ sở dữ liệu SQLite của server. Với server cục bộ, hãy in đường dẫn cơ sở dữ liệu của nó bằng:
+
+```bash
+opencode debug paths db
+```
+
+Đường dẫn theo bản phát hành thông thường là `~/.local/share/opencode/opencode.db`; `XDG_DATA_HOME`, kênh phát hành và `OPENCODE_DB`
+có thể thay đổi nó. Đừng chỉnh sửa cơ sở dữ liệu để quản lý thông tin đăng nhập; hãy dùng `/connect` hoặc các lệnh `auth`.
+
+V2 nhập các thông tin đăng nhập được hỗ trợ từ tệp `auth.json` cũ trong thư mục dữ liệu OpenCode trong quá trình di trú cơ sở dữ liệu của nó.
+Thông tin đăng nhập mới và đã cập nhật được lưu trong SQLite thay vì được ghi lại vào tệp đó.

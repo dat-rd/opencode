@@ -1,0 +1,44 @@
+---
+title: "Tìm kiếm web"
+description: "Tìm kiếm web được lưu trữ cho OpenCode qua Console."
+---
+
+Console cung cấp tìm kiếm web được lưu trữ cho những người dùng OpenCode v2 đã kết nối. Chủ sở hữu hoặc quản trị viên của không gian làm việc bật tính năng này một lần cho toàn không gian làm việc, mà không cần cấp khóa nhà cung cấp tìm kiếm riêng cho từng thành viên.
+
+Mỗi lượt tìm kiếm thành công tốn **$0.01** và được tính vào số dư của không gian làm việc cũng như hạn mức chi tiêu của thành viên.
+
+## Bật
+
+1. Đăng nhập vào [Console](https://opencode.ai/console) với vai trò chủ sở hữu hoặc quản trị viên của không gian làm việc.
+2. Mở **Cài đặt** > **Chung**.
+3. Bật **Tìm kiếm web được lưu trữ**.
+
+Sau đó, từng thành viên kết nối OpenCode với không gian làm việc bằng `/connect`.
+
+```text
+/connect
+```
+
+OpenCode nạp **OpenCode Web Search** từ cấu hình được quản lý của không gian làm việc. Thành viên không cần đặt `websearch.provider` hay thêm khóa API của nhà cung cấp.
+
+## Tìm kiếm
+
+Hỏi OpenCode về thông tin mới nhất trong một lời nhắc. Các lượt tìm kiếm chạy từ OpenCode chứ không phải từ một trang tương tác trong Console.
+
+```text
+Find the latest Bun release and summarize the changes with source links.
+```
+
+Nhà cung cấp được lưu trữ tìm kiếm trên web công cộng và trả về tối đa tám kết quả. OpenCode dùng các kết quả đó để trả lời lời nhắc và trích dẫn nguồn.
+
+Xem [hướng dẫn về websearch](/websearch) để cấu hình quyền hoặc tắt công cụ này.
+
+## Thanh toán
+
+Console tính phí **$0.01** sau khi một lượt tìm kiếm trả về tập kết quả hợp lệ. Các lượt tìm kiếm thất bại hoặc bị giới hạn tần suất không bị tính phí.
+
+Tìm kiếm web hiển thị riêng biệt với mức sử dụng mô hình trong **Mức sử dụng**, **Hoạt động của tôi**, hoạt động của thành viên, hóa đơn và các bản xuất CSV. Hạn mức chi tiêu hàng tháng của không gian làm việc và của thành viên bao gồm cả phí tìm kiếm web.
+
+## Quyền riêng tư
+
+Tìm kiếm web được lưu trữ không lưu giữ bất kỳ dữ liệu nào. Console và nhà cung cấp tìm kiếm được lưu trữ của nó xử lý từng truy vấn cùng kết quả mà không lưu nội dung của chúng.

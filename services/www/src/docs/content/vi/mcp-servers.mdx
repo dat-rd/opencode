@@ -1,0 +1,550 @@
+---
+title: "MCP server"
+---
+
+OpenCode kết nối tới các server [Model Context Protocol](https://modelcontextprotocol.io/) và phơi bày những khả năng như
+công cụ, lời nhắc, tài nguyên và chỉ dẫn. Công cụ MCP tiêu tốn context của mô hình, vì vậy hãy chỉ thêm những server bạn
+cần.
+
+## Thiết lập
+
+Thêm một server từ xa từ dự án nên dùng nó, rồi kiểm tra kết nối của server đó:
+
+```sh
+opencode mcp add context7 --url https://mcp.context7.com/mcp
+opencode mcp list
+```
+
+Lệnh này ghi server vào [cấu hình](/config) của dự án. Thêm `--global` để có trong mọi dự án:
+
+```sh
+opencode mcp add context7 --global --url https://mcp.context7.com/mcp
+```
+
+Server từ xa dùng OAuth theo mặc định. Nếu danh sách hiển thị `needs authentication`, hãy mở OpenCode, chạy `/mcps`,
+chọn server và đăng nhập. Một server đã kết nối sẵn sàng để tác nhân sử dụng:
+
+```text
+✓ context7  connected
+```
+
+## Cấu hình
+
+Để cấu hình một server theo cách thủ công, hãy đặt cho nó một tên duy nhất dưới `mcp.servers`. V2 không đặt tên server trực
+tiếp dưới `mcp`.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "my-server": {
+        "type": "local",
+        "command": ["npx", "-y", "example-mcp-server"],
+      },
+    },
+  },
+}
+```
+
+Server tự động kết nối. Dùng `disabled`, không phải một trường `enabled`, để giữ một server ở trạng thái đã cấu hình mà
+không kết nối tới nó:
+
+```jsonc
+{
+  "mcp": {
+    "servers": {
+      "my-server": {
+        "type": "local",
+        "command": ["npx", "-y", "example-mcp-server"],
+        "disabled": true,
+      },
+    },
+  },
+}
+```
+
+Cấu hình dự án có độ ưu tiên cao hơn sẽ thay thế toàn bộ object server cùng tên. Hãy dùng các tên khác nhau cho những
+kết nối hoặc tài khoản riêng biệt; nếu không, hãy lặp lại mọi trường bắt buộc trong phần ghi đè:
+
+```jsonc title="opencode.jsonc"
+{
+  "mcp": {
+    "servers": {
+      "my-server": {
+        "type": "remote",
+        "url": "https://mcp.example.com/mcp",
+      },
+    },
+  },
+}
+```
+
+## Cục bộ
+
+Server cục bộ là một lệnh mà OpenCode khởi động qua vận tải MCP stdio. Hãy thêm bằng cách đặt lệnh sau `--`:
+
+```sh
+opencode mcp add everything -- npx -y @modelcontextprotocol/server-everything
+```
+
+Truyền biến môi trường bằng cách lặp lại cờ `--env`:
+
+```sh
+opencode mcp add everything --env LOG_LEVEL=info -- npx -y @modelcontextprotocol/server-everything
+```
+
+Dùng cấu hình cho các tuỳ chọn tiến trình khác như thư mục làm việc:
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "everything": {
+        "type": "local",
+        "command": ["npx", "-y", "@modelcontextprotocol/server-everything"],
+        "cwd": ".",
+        "environment": {
+          "LOG_LEVEL": "info",
+          "MCP_API_KEY": "{env:MCP_API_KEY}",
+        },
+      },
+    },
+  },
+}
+```
+
+| Trường        | Bắt buộc | Mô tả                                                                                     |
+| ------------- | -------- | ---------------------------------------------------------------------------------------- |
+| `type`        | Có       | Phải là `"local"`.                                                                         |
+| `command`     | Có       | Tệp thực thi kèm các đối số của nó.                                                      |
+| `cwd`         | Không    | Thư mục tiến trình. Đường dẫn tương đối được phân giải từ không gian làm việc, cũng là mặc định. |
+| `environment` | Không    | Các biến chuỗi được thêm vào môi trường tiến trình kế thừa của OpenCode.                    |
+| `disabled`    | Không    | Ngăn kết nối khi là `true`. Mặc định là `false`.                                          |
+| `codemode`    | Không    | Đặt thành `false` để phơi bày công cụ trực tiếp thay vì qua Code Mode. Mặc định là `true`. |
+| `timeout`     | Không    | Ghi đè thời gian chờ cho từng server.                                                     |
+| `protocol`    | Không    | `legacy` (mặc định), `auto`, hoặc `2026-07-28`. Xem [Phiên bản giao thức](#protocol-version). |
+
+Dùng `{env:NAME}` để thay thế biến môi trường. Các biểu thức shell như `$NAME` không được mở rộng trong chuỗi JSON:
+
+```jsonc
+{
+  "environment": {
+    "MCP_API_KEY": "{env:MCP_API_KEY}",
+  },
+}
+```
+
+## Từ xa
+
+Server từ xa dùng vận tải MCP Streamable HTTP và yêu cầu một URL tuyệt đối:
+
+```sh
+opencode mcp add context7 --url https://mcp.context7.com/mcp
+```
+
+Truyền header request bằng cách lặp lại cờ `--header`. Hãy đặt trong dấu nháy các tham chiếu `{env:NAME}` để shell ghi
+chúng theo đúng nghĩa đen:
+
+```sh
+opencode mcp add context7 --url https://mcp.context7.com/mcp --header 'CONTEXT7_API_KEY={env:CONTEXT7_API_KEY}'
+```
+
+Dùng cấu hình cho các tuỳ chọn khác. Hãy lưu bí mật trong biến môi trường thay vì trong tệp:
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "context7": {
+        "type": "remote",
+        "url": "https://mcp.context7.com/mcp",
+        "oauth": false,
+        "headers": {
+          "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}",
+        },
+      },
+    },
+  },
+}
+```
+
+| Trường        | Bắt buộc | Mô tả                                                                                        |
+| ------------- | -------- | --------------------------------------------------------------------------------------------- |
+| `type`        | Có       | Phải là `"remote"`.                                                                           |
+| `url`         | Có       | Endpoint Streamable HTTP tuyệt đối.                                                          |
+| `headers`     | Không    | Các header HTTP chuỗi được gửi tới endpoint.                                                  |
+| `oauth`       | Không    | Cài đặt OAuth, hoặc `false` để tắt OAuth.                                                     |
+| `disabled`    | Không    | Ngăn kết nối khi là `true`. Mặc định là `false`.                                              |
+| `codemode`    | Không    | Đặt thành `false` để phơi bày công cụ trực tiếp thay vì qua Code Mode. Mặc định là `true`.     |
+| `timeout`     | Không    | Ghi đè thời gian chờ cho từng server.                                                          |
+| `protocol`    | Không    | `legacy` (mặc định), `auto`, hoặc `2026-07-28`. Xem [Phiên bản giao thức](#protocol-version). |
+
+Chỉ dùng `oauth: false` khi server chỉ dùng một API key hoặc thông tin xác thực header khác:
+
+```jsonc
+{
+  "type": "remote",
+  "url": "https://mcp.example.com/mcp",
+  "oauth": false,
+  "headers": { "Authorization": "Bearer {env:MCP_API_KEY}" },
+}
+```
+
+## OAuth
+
+OAuth được bật cho server từ xa trừ khi `oauth` là `false`. OpenCode phát hiện server cấp quyền, đăng nhập bằng PKCE và
+làm mới token. Thông tin xác thực được lưu bên ngoài cấu hình dự án.
+
+Hầu hết server chỉ cần URL:
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "sentry": {
+        "type": "remote",
+        "url": "https://mcp.sentry.dev/mcp",
+      },
+    },
+  },
+}
+```
+
+Nếu server cần xác thực, hãy chạy `/mcps`, chọn nó và hoàn tất cấp quyền trong trình duyệt. CLI có thể bắt đầu cùng quy
+trình đó:
+
+```sh
+opencode mcp auth sentry
+```
+
+### Đăng ký client
+
+OpenCode tự giới thiệu với server cấp quyền bằng phương thức đầu tiên áp dụng được:
+
+| Phương thức                                                                                                                                                                                                 | Dùng khi                                                                                                             |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Client đã đăng ký trước                                                                                                                                                                                     | `oauth.client_id` được cấu hình.                                                                                    |
+| [Client ID Metadata Document](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#client-id-metadata-documents) (CIMD)                                                    | Server cấp quyền hỗ trợ CIMD và client công khai, và `oauth.redirect_uri` chưa được đặt.                              |
+| [Dynamic client registration](https://datatracker.ietf.org/doc/html/rfc7591) (DCR)                                                                                                                          | Không phương án nào ở trên áp dụng. OpenCode đăng ký một client và dùng lại nó ở các lần đăng nhập sau. |
+
+Một server cấp quyền chọn CIMD thông qua metadata của nó:
+
+```json
+{
+  "issuer": "https://auth.example.com",
+  "client_id_metadata_document_supported": true,
+  "token_endpoint_auth_methods_supported": ["none"]
+}
+```
+
+Với CIMD, OpenCode gửi URL tài liệu metadata của nó làm `client_id` và bỏ qua đăng ký:
+
+```text
+https://opencode.ai/oauth/opencode/client.json
+```
+
+Tài liệu cho phép các chuyển hướng loopback `http://127.0.0.1/callback` và `http://localhost/callback` không có cổng.
+Server cấp quyền chấp nhận mọi cổng loopback cho các chuyển hướng này, như [RFC 8252](https://datatracker.ietf.org/doc/html/rfc8252#section-7.3)
+yêu cầu, nên `callback_port` hoạt động với CIMD. Một `redirect_uri` tuỳ chỉnh thì không, nên OpenCode quay về DCR.
+
+Nếu server cấp quyền không hỗ trợ cả CIMD lẫn DCR, hãy cấu hình một client đã đăng ký trước.
+
+### Client đã đăng ký trước
+
+Khi một nhà cung cấp đưa cho bạn thông tin xác thực client, hãy dùng các trường OAuth snake_case của V2:
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "company-tools": {
+        "type": "remote",
+        "url": "https://mcp.example.com/mcp",
+        "oauth": {
+          "client_id": "{env:MCP_CLIENT_ID}",
+          "client_secret": "{env:MCP_CLIENT_SECRET}",
+          "scope": "tools:read tools:execute",
+          "callback_port": 19876,
+          "redirect_uri": "http://127.0.0.1:19876/callback",
+        },
+      },
+    },
+  },
+}
+```
+
+| Trường                    | Mô tả                                                                                                                                                        |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `client_id`               | ID client đã đăng ký trước. Được ưu tiên hơn CIMD và DCR.                                                                                                    |
+| `client_secret`           | Bí mật cho một client confidential, được gửi trong body của request token. Bỏ qua với client công khai.                                                          |
+| `scope`                   | Các scope phân tách bằng dấu cách cần yêu cầu. Mặc định là scope mà server nêu khi nó từ chối một request chưa xác thực.                                          |
+| `callback_port`           | Cổng callback cục bộ từ `1` tới `65535`. Mặc định là cổng của `redirect_uri`, rồi tới một cổng tạm thời khả dụng.                                              |
+| `redirect_uri`            | URI loopback đã đăng ký trước có đường dẫn và cổng tới listener callback cục bộ. Đặt nó sẽ tắt CIMD.                                                             |
+| `auth_server_metadata_url` | URL của tài liệu metadata OAuth hoặc OpenID Connect của server cấp quyền. Hãy đặt nó khi MCP server không công bố metadata tài nguyên được bảo vệ nêu tên server cấp quyền của nó. |
+
+Xoá thông tin xác thực OAuth đã lưu khi bạn cần đăng nhập lại hoặc chuyển sang tài khoản khác:
+
+```sh
+opencode mcp logout sentry
+```
+
+## Thời gian chờ
+
+Thời gian chờ là số mili giây nguyên dương. Đặt mặc định dưới `mcp.timeout`; object `timeout` của một server sẽ ghi đè
+các mặc định tương ứng.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "timeout": {
+      "startup": 45000,
+      "catalog": 30000,
+      "execution": 600000,
+    },
+    "servers": {
+      "slow-tools": {
+        "type": "remote",
+        "url": "https://mcp.example.com/mcp",
+        "timeout": {
+          "catalog": 60000,
+        },
+      },
+    },
+  },
+}
+```
+
+| Thời gian chờ | Mặc định | Áp dụng cho                                                       |
+| ------------ | -------- | ----------------------------------------------------------------- |
+| `startup`    | 30 giây  | Kết nối vận tải và khởi tạo server.                               |
+| `catalog`    | 30 giây  | Liệt kê công cụ, lời nhắc, tài nguyên và mẫu tài nguyên.         |
+| `execution`  | 12 giờ   | Lời gọi công cụ, lấy lời nhắc và đọc tài nguyên.                  |
+
+## Phiên bản giao thức
+
+Mặc định OpenCode mở mọi server bằng bắt tay `initialize` cổ điển của MCP. Đặt `protocol` của một server để nói chuyện
+với server được xây dựng trên bản sửa đổi 2026-07-28:
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "modern": {
+        "type": "remote",
+        "url": "https://mcp.example.com/mcp",
+        "protocol": "auto",
+      },
+    },
+  },
+}
+```
+
+| Giá trị     | Hành vi                                                                                                          |
+| ----------- | ----------------------------------------------------------------------------------------------------------------- |
+| `legacy`    | Mặc định. Gửi `initialize` và nói các bản sửa đổi giao thức tới 2025-11-25.                                    |
+| `auto`      | Dò bằng `server/discover` cho bản sửa đổi 2026-07-28 và quay về `legacy` khi server không hỗ trợ.                  |
+| `2026-07-28` | Yêu cầu bản sửa đổi 2026-07-28. Kết nối thất bại với các server cũ hơn.                                         |
+
+Dò một server `legacy` cục bộ sẽ thêm một tiến trình phụ ngắn hạn và có thể chờ tới hết thời gian chờ khởi động khi
+server bỏ qua các request lạ, vì vậy hãy giới hạn `auto` cho những server thực sự cần.
+
+## Tên
+
+OpenCode đặt tên cho một công cụ là `<server>_<tool>`. Nó thay thế mọi ký tự không phải chữ cái, chữ số, `_` và `-`
+bằng `_`:
+
+```text
+server: context 7
+tool:   resolve.library/id
+name:   context_7_resolve_library_id
+```
+
+Lời nhắc MCP trở thành các lệnh được đặt tên là `<server>:<prompt>` với cùng cách chuẩn hoá đó. Ví dụ:
+
+```text
+/context_7:find_docs
+```
+
+Văn bản lệnh điền vào các đối số của lời nhắc theo thứ tự. Hãy phân tách bằng dấu cách và đặt trong dấu nháy những giá
+trị có chứa dấu cách:
+
+```text
+/context_7:find_docs react "server components"
+```
+
+Hãy chọn tên server ngắn vẫn duy nhất sau khi chuẩn hoá. Dưới Code Mode mặc định, các công cụ được nhóm theo tên
+server đã chuẩn hoá:
+
+```text
+tools.context_7.resolve_library_id(...)
+```
+
+## Quyền
+
+Code Mode là mặc định. Đặt `codemode` thành `false` khi công cụ của một server phải nằm lại trong danh sách công cụ
+gốc của nhà cung cấp:
+
+```jsonc
+{
+  "mcp": {
+    "servers": {
+      "context7": {
+        "type": "remote",
+        "url": "https://mcp.context7.com/mcp",
+        "codemode": false,
+      },
+    },
+  },
+}
+```
+
+Dùng các hành động quyền để ẩn hoặc từ chối công cụ mà không cần ngắt kết nối server của chúng. Hãy khớp với tên
+`<server>_<tool>` đã chuẩn hoá:
+
+```jsonc
+{
+  "permissions": [
+    {
+      "action": "context7_*",
+      "resource": "*",
+      "effect": "deny",
+    },
+  ],
+}
+```
+
+## Tài nguyên
+
+Tác nhân đọc tài nguyên MCP qua hai công cụ tích hợp, `list_mcp_resources` và `read_mcp_resource`. Hãy kiểm soát chúng
+bằng các hành động quyền sau:
+
+| Hành động                    | Tài nguyên          |
+| ---------------------------- | ------------------- |
+| `opencode_list_mcp_resources` | Tên server.         |
+| `opencode_read_mcp_resource`  | `<server>:<uri>`    |
+
+Ví dụ, cho phép mọi lượt đọc từ server `docs`:
+
+```jsonc
+{
+  "permissions": [
+    {
+      "action": "opencode_read_mcp_resource",
+      "resource": "docs:*",
+      "effect": "allow",
+    },
+  ],
+}
+```
+
+## Chỉ dẫn của server
+
+Khi một server trả về chỉ dẫn trong quá trình khởi tạo, OpenCode thêm chúng vào system lời nhắc:
+
+```text
+<mcp_instructions>
+  <server name="sentry">
+    Search for an existing issue before creating a new one.
+  </server>
+</mcp_instructions>
+```
+
+Với các server dùng Code Mode, OpenCode thêm một dòng nói tác nhân có thể tìm công cụ của server ở đâu.
+
+Chỉ dẫn của một server bị bỏ qua khi quyền của tác nhân từ chối mọi công cụ của nó, hoặc khi chúng từ chối `execute`
+cho một server dùng Code Mode.
+
+## Yêu cầu nhập liệu
+
+Server có thể yêu cầu nhập liệu trong một lời gọi thông qua MCP elicitation. OpenCode hiển thị yêu cầu đó dưới dạng
+biểu mẫu, hoặc dưới dạng một liên kết để mở cho các yêu cầu URL:
+
+```text
+sentry is requesting input
+```
+
+Bỏ qua biểu mẫu sẽ huỷ yêu cầu.
+
+## Context
+
+Với các lời gọi được thực hiện thay cho một phiên, OpenCode gửi phiên ID trong
+`CallToolRequest.params._meta["ai.opencode/sessionID"]`. Điều này áp dụng cho công cụ trực tiếp và Code Mode qua stdio
+và Streamable HTTP:
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "lookup",
+    "arguments": { "query": "example" },
+    "_meta": { "ai.opencode/sessionID": "ses_..." }
+  }
+}
+```
+
+ID đó là metadata của request chứ không phải đối số của công cụ, nên nó không có trong schema mà mô hình nhìn thấy.
+Hãy coi nó là một giá trị đối chiếu không rõ nội dung:
+
+| Quy tắc   | Hành vi                                                                                       |
+| --------- | ---------------------------------------------------------------------------------------------- |
+| Danh tính | Nó xác định phiên OpenCode đã gọi, không phải phiên vận tải MCP.                               |
+| Hiện diện | Nó có thể vắng mặt với các lời gọi không có ngữ cảnh phiên.                                    |
+| Bảo mật   | Không dùng riêng nó để xác thực hoặc cấp quyền.                                               |
+| Riêng tư  | Server từ xa nhận ID thô và có thể ghi log hoặc lưu giữ nó.                                    |
+
+## Quản lý
+
+Liệt kê các server và trạng thái kết nối hiện tại của chúng từ bất kỳ dự án nào:
+
+```sh
+opencode mcp list
+```
+
+Dùng `/mcps` trong OpenCode để xem, kết nối, ngắt kết nối hoặc xác thực server. Dùng CLI để thêm server và quản lý
+thông tin xác thực OAuth:
+
+```sh
+opencode mcp add sentry --url https://mcp.sentry.dev/mcp
+opencode mcp auth sentry
+opencode mcp logout sentry
+```
+
+Chạy `opencode mcp auth` không kèm tên để chọn từ các server hỗ trợ OAuth:
+
+```sh
+opencode mcp auth
+```
+
+Để xoá một server, hãy xoá mục của nó khỏi cấu hình dự án hoặc cấu hình toàn cục nơi nó được thêm:
+
+```jsonc
+{
+  "mcp": {
+    "servers": {},
+  },
+}
+```
+
+Ngắt kết nối một server trong `/mcps` không thay đổi cấu hình. Hãy chỉnh sửa cấu hình trực tiếp cho cài đặt client
+OAuth, thời gian chờ, thư mục làm việc, hoặc để giữ một server ở trạng thái ngắt kết nối:
+
+```jsonc
+{
+  "mcp": {
+    "servers": {
+      "sentry": {
+        "type": "remote",
+        "url": "https://mcp.sentry.dev/mcp",
+        "disabled": true,
+      },
+    },
+  },
+}
+```

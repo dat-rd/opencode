@@ -1,0 +1,382 @@
+---
+title: "ACP"
+description: "Dùng OpenCode với một client Agent Client Protocol."
+---
+
+`opencode acp` chạy OpenCode dưới dạng một tác nhân [Agent Client Protocol](https://agentclientprotocol.com), nên bạn có thể dùng nó
+từ một client ACP như Zed. Ví dụ sau thêm OpenCode vào Zed:
+
+```json title="~/.config/zed/settings.json"
+{
+  "agent_servers": {
+    "OpenCode": {
+      "command": "opencode",
+      "args": ["acp"]
+    }
+  }
+}
+```
+
+Các client ACP khác dùng cùng lệnh và đối số `acp`, nhưng tệp cấu hình và tên trường của chúng có thể khác nhau. Nếu
+một client giao diện đồ họa không tìm thấy `opencode`, hãy đặt `command` thành đường dẫn tuyệt đối mà `which opencode` in ra.
+
+## Xác thực
+
+OpenCode dùng thông tin đăng nhập của nhà cung cấp mà nó đã có. Hãy đăng nhập từ terminal trước khi bắt đầu client ACP:
+
+```bash
+opencode auth login
+```
+
+OpenCode cung cấp một phương thức xác thực, `opencode-login`. Mặc định đây là phương thức xác thực dạng tác nhân. Yêu cầu `authenticate`
+chỉ chấp nhận phương thức đó và không thu thập thông tin đăng nhập. Nếu một lời nhắc thất bại vì một nhà cung cấp cần xác thực,
+OpenCode trả về lỗi `auth_required` của ACP.
+
+Nếu client đặt `clientCapabilities.auth.terminal` thành `true`, phương thức xác thực là phương thức xác thực dạng terminal:
+
+```json
+{
+  "id": "opencode-login",
+  "name": "Login with opencode",
+  "description": "Run `opencode auth login` in the terminal",
+  "type": "terminal",
+  "args": ["--login"]
+}
+```
+
+Client không được gửi phương thức này tới `authenticate`. Thay vào đó, nó thêm `--login` vào lệnh khởi chạy OpenCode,
+ví dụ `opencode acp --login`, rồi chạy lệnh đó trong một terminal. OpenCode chạy luồng `opencode auth login` và thoát.
+Mã thoát 0 nghĩa là đăng nhập thành công. Client sau đó kết nối lại và gửi `initialize` lần nữa.
+
+Nếu client đặt `clientCapabilities._meta["terminal-auth"]` thành `true`, phương thức xác thực sẽ chứa lệnh đăng nhập:
+
+```json
+{
+  "id": "opencode-login",
+  "name": "Login with opencode",
+  "description": "Run `opencode auth login` in the terminal",
+  "_meta": { "terminal-auth": { "command": "opencode", "args": ["auth", "login"], "label": "OpenCode Login" } }
+}
+```
+
+## Khắc phục sự cố
+
+`opencode acp` chờ các tin nhắn ACP trên stdin, nên nó có vẻ bị treo khi bạn chạy trực tiếp trong một terminal. Hãy khởi chạy nó từ
+một client ACP thay thế.
+
+Nếu client báo rằng tiến trình đã thoát hoặc ghi ra kết quả giao thức không hợp lệ, hãy thêm `--print-logs` trước `acp` trong
+các đối số của client. Khi đó OpenCode ghi log ACP và log server riêng của nó ra stderr. Stdout chỉ chứa các tin nhắn ACP.
+
+```bash
+opencode --print-logs acp
+```
+
+## Tham khảo giao thức
+
+Phần này dành cho các nhà phát triển client ACP. Nó liệt kê những phần của ACP mà OpenCode hỗ trợ và các khóa `_meta` mà
+OpenCode thêm vào. Client không nhận ra các khóa này có thể bỏ qua chúng. Bản
+[tài liệu ACP](https://agentclientprotocol.com) định nghĩa các tin nhắn.
+
+### Truyền tải
+
+Client khởi chạy `opencode acp` như một tiến trình con. Hai bên trao đổi tin nhắn JSON-RPC phân tách theo dòng qua stdin và
+stdout, dùng phiên bản giao thức ACP 1.
+
+`opencode acp` khởi chạy một server OpenCode riêng cho riêng nó. Nó không kết nối tới dịch vụ nền dùng chung,
+và không mở cổng mạng cho ACP. Một tiến trình có thể phục vụ nhiều phiên ACP. Nó thoát khi client đóng
+stdin.
+
+### Năng lực
+
+Phản hồi `initialize` của OpenCode chứa các năng lực tác nhân sau:
+
+```json
+{
+  "loadSession": true,
+  "mcpCapabilities": { "http": true, "sse": false },
+  "promptCapabilities": { "embeddedContext": true, "image": true },
+  "sessionCapabilities": {
+    "additionalDirectories": {},
+    "close": {},
+    "delete": {},
+    "fork": {},
+    "list": {},
+    "resume": {}
+  }
+}
+```
+
+OpenCode đọc các năng lực client sau:
+
+| Năng lực                                  | Tác dụng                                                                           |
+| ----------------------------------------- | ---------------------------------------------------------------------------------- |
+| `auth.terminal` đặt thành `true`          | Phương thức xác thực là một [phương thức xác thực dạng terminal](#authentication). |
+| `elicitation.form`                        | OpenCode hỏi [câu hỏi](#questions) dưới dạng biểu mẫu.                             |
+| `session.compaction`                      | OpenCode báo cáo [nén](#compaction) bằng các bản cập nhật của ACP.                 |
+| `_meta["terminal-auth"]` đặt thành `true` | Phương thức xác thực chứa [lệnh đăng nhập](#authentication).                       |
+
+### Phiên
+
+Client đặt thư mục làm việc khi nó tạo một phiên. OpenCode dùng cấu hình của thư mục đó,
+bao gồm các mô hình, tác nhân, lệnh, kỹ năng, chỉ dẫn, tiện ích mở rộng và MCP server của thư mục.
+
+- `cwd` phải là một đường dẫn tuyệt đối. OpenCode từ chối `cwd` tương đối bằng lỗi tham số không hợp lệ.
+- `session/load` phát lại các tin nhắn đã lưu. `session/resume` và `session/fork` không phát lại chúng.
+- Để tải, tiếp tục hoặc phân nhánh một phiên, client phải truyền thư mục của phiên đó làm `cwd`. OpenCode từ chối
+  một `cwd` khác bằng lỗi tham số không hợp lệ.
+- `session/list` trả về tối đa 100 phiên mỗi trang. Nó chấp nhận một bộ lọc `cwd` và một `cursor`.
+- `session/close` ngắt công việc đang chạy và tách phiên khỏi tiến trình ACP. OpenCode vẫn giữ phiên
+  đã lưu.
+- `session/delete` kết thúc một lời nhắc đang hoạt động giống như `session/cancel`, rồi xóa phiên đó. Xóa một phiên không
+  tồn tại vẫn thành công.
+- Một phiên chạy một lời nhắc tại một thời điểm. OpenCode trả về lỗi cho `session/prompt` thứ hai trong khi lời nhắc đầu tiên
+  đang hoạt động.
+
+### Hủy
+
+`session/cancel` kết thúc lời nhắc đang hoạt động với `stopReason: "cancelled"`. Một `$/cancel_request` cho yêu cầu lời nhắc cũng
+tương tự. OpenCode từ chối các yêu cầu quyền đang chờ. Nó báo các lệnh gọi công cụ không hoàn tất sau khi hủy là
+`failed`.
+
+### Thư mục bổ sung
+
+Client có thể truyền `additionalDirectories` trong `session/new`, `session/load`, `session/resume` và `session/fork`:
+
+```json
+{ "cwd": "/work/app", "additionalDirectories": ["/work/shared"], "mcpServers": [] }
+```
+
+- Mỗi mục phải là một đường dẫn tuyệt đối, không chứa `*` hoặc `?`.
+- OpenCode cho phép truy cập thư mục bên ngoài bên trong mỗi thư mục gốc. Các quy tắc quyền đọc, sửa và shell vẫn áp dụng.
+- Danh sách của mỗi yêu cầu thay thế danh sách trước đó của phiên, đúng như
+  [RFD additional directories](https://agentclientprotocol.com/rfds/additional-directories) quy định.
+- OpenCode lưu các quyền truy cập này trên phiên, nên chúng cũng áp dụng khi một client OpenCode khác dùng phiên đó. Các phiên con
+  sao chép các quyền truy cập khi OpenCode tạo chúng.
+
+`session/list` trả về danh sách đã lưu của từng phiên trong `additionalDirectories`.
+
+### Tùy chọn cấu hình
+
+Các phiên mới dùng mô hình và tác nhân chính mặc định của thư mục. Phản hồi của `session/new`, `session/load`,
+`session/resume` và `session/fork` chứa các tùy chọn cấu hình sau:
+
+| ID       | Nhóm            | Giá trị                                                                                    |
+| -------- | --------------- | ------------------------------------------------------------------------------------------ |
+| `model`  | `model`         | Các mô hình đang bật dưới dạng `provider/model`. Hậu tố `/variant` cũng đặt mức độ nỗ lực. |
+| `effort` | `thought_level` | Các biến thể của mô hình và `default`. Chỉ có với các mô hình có biến thể.                 |
+| `mode`   | `mode`          | Các tác nhân chính hiển thị được.                                                          |
+
+`session/set_config_option` nhận giá trị chuỗi:
+
+```json
+{ "sessionId": "ses_123", "configId": "model", "value": "anthropic/claude-sonnet-4" }
+```
+
+`session/set_mode` cũng đặt tác nhân. OpenCode gửi `config_option_update` khi danh sách mô hình hoặc tác nhân khả dụng thay đổi.
+Nó cũng gửi một bản cập nhật khi một client khác đổi mô hình hoặc tác nhân của phiên.
+
+### Nội dung lời nhắc
+
+Lời nhắc có thể chứa văn bản, hình ảnh, tài nguyên nhúng và liên kết tài nguyên. OpenCode bỏ qua các khối âm thanh. Nó xử lý
+các khối còn lại như sau:
+
+| Khối                                                    | OpenCode thực hiện gì                                                                      |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `text`                                                  | Gửi nó tới mô hình.                                                                        |
+| `text` chỉ có audience `assistant`                      | Gửi nó tới mô hình như ngữ cảnh riêng, tách khỏi tin nhắn của người dùng.                  |
+| `text` chỉ có audience `user`                           | Loại nó khỏi đầu vào của mô hình.                                                          |
+| `image` có `data`                                       | Đính kèm nó vào lời nhắc.                                                                  |
+| `image` chỉ có `uri`                                    | Xử lý nó như một liên kết tài nguyên.                                                      |
+| `resource` có `text`                                    | Chèn văn bản ngay sau đường dẫn hoặc URI của tài nguyên.                                   |
+| `resource` có `blob`                                    | Đính kèm nếu nó có `mimeType`. Bỏ qua nếu không.                                           |
+| `resource_link` tới một URI `file://`                   | Đính kèm tệp đó. Nếu tệp bị thiếu hoặc không đọc được, gửi một liên kết Markdown thay thế. |
+| `resource_link` tới một URI `zed://` có truy vấn `path` | Đính kèm tệp tại `path`.                                                                   |
+| `resource_link` tới một URI khác                        | Gửi một liên kết Markdown như `[spec](https://example.com/spec.md)`.                       |
+
+Audience đến từ `annotations` của khối. OpenCode từ chối một khối `image` không có cả `data` lẫn `uri`.
+Khối này chỉ là ngữ cảnh cho mô hình:
+
+```json
+{ "type": "text", "text": "Open file: src/app.ts", "annotations": { "audience": ["assistant"] } }
+```
+
+### Lệnh
+
+Sau `session/new`, `session/load`, `session/resume` hoặc `session/fork`, OpenCode gửi `available_commands_update`
+với các lệnh của thư mục và lệnh `compact` tích hợp sẵn. Nó gửi một bản cập nhật khác khi các lệnh thay đổi.
+
+```json
+{
+  "sessionUpdate": "available_commands_update",
+  "availableCommands": [{ "name": "compact", "description": "Compact the session" }]
+}
+```
+
+Nếu một lời nhắc bắt đầu bằng `/` và tên của một lệnh khả dụng, OpenCode chạy lệnh đó với phần văn bản còn lại
+làm đối số. OpenCode gửi văn bản khác bắt đầu bằng `/` như một lời nhắc bình thường. `/compact` chạy
+[nén](/compaction).
+
+### MCP server
+
+Client có thể truyền các MCP server dạng stdio và HTTP trong `session/new`, `session/load`, `session/resume` và `session/fork`.
+OpenCode thêm chúng vào thư mục của phiên trong suốt vòng đời tiến trình `opencode acp`, nên các phiên khác trong thư mục
+đó cũng dùng được chúng. OpenCode chuyển tiếp các HTTP header và không dùng OAuth cho những server này. Nó không
+quảng bá MCP qua SSE, và không hỗ trợ MCP qua ACP.
+
+| Trường hợp                           | Hành vi                                                         |
+| ------------------------------------ | --------------------------------------------------------------- |
+| Trùng tên với một server đã cấu hình | Server của client thay thế server đã cấu hình trong thư mục đó. |
+| [Chính sách](/policies)              | Các quy tắc `integration.use` vẫn áp dụng.                      |
+
+```json
+{ "type": "http", "name": "docs", "url": "https://mcp.example.com", "headers": [] }
+```
+
+### Quyền
+
+Yêu cầu quyền đưa ra ba lựa chọn:
+
+```json
+[
+  { "optionId": "once", "kind": "allow_once", "name": "Allow once" },
+  { "optionId": "always", "kind": "allow_always", "name": "Always allow" },
+  { "optionId": "reject", "kind": "reject_once", "name": "Reject" }
+]
+```
+
+Khi một yêu cầu thay đổi tệp, OpenCode kèm nội dung `diff` nếu nó có thể dựng bản xem trước của thay đổi đó.
+
+### Câu hỏi
+
+Nếu client quảng bá `elicitation.form`, OpenCode hỏi câu hỏi bằng `elicitation/create` ở chế độ biểu mẫu. Yêu cầu
+kèm `toolCallId` khi OpenCode đã gửi lệnh gọi công cụ đó dưới dạng một `session/update` cho phiên này.
+
+```json
+{
+  "mode": "form",
+  "sessionId": "ses_123",
+  "toolCallId": "call_1",
+  "message": "Which package manager?",
+  "requestedSchema": {
+    "type": "object",
+    "properties": { "pm": { "type": "string", "oneOf": [{ "const": "bun", "title": "Bun" }] } },
+    "required": ["pm"]
+  }
+}
+```
+
+- OpenCode không bao giờ gửi biểu mẫu có thể thu thập thông tin bí mật.
+- Nếu một trường chấp nhận câu trả lời tự do bên cạnh các lựa chọn của nó, schema sẽ thêm một thuộc tính chuỗi tùy chọn `<key>_custom`.
+  Với một lựa chọn duy nhất, câu trả lời tùy chỉnh không rỗng sẽ thay thế lựa chọn đã chọn. Với lựa chọn nhiều, OpenCode thêm nó
+  vào các lựa chọn đã chọn.
+- Nếu người dùng từ chối hoặc hủy biểu mẫu, OpenCode hủy câu hỏi.
+
+Nếu OpenCode không hiển thị được câu hỏi, nó hủy câu hỏi và bảo mô hình tiếp tục mà không có câu trả lời.
+
+### Nén
+
+Nếu client quảng bá `session.compaction`, OpenCode báo cáo việc nén bằng các bản cập nhật `compaction_update` và
+`compaction_summary_chunk` từ RFD [session compaction](https://agentclientprotocol.com/rfds/session-compaction)
+của ACP, vốn đang ở trạng thái Preview. Khi client tải một phiên, OpenCode phát lại mỗi lần nén đã hoàn tất hoặc thất bại dưới dạng một
+bản cập nhật.
+
+```json
+{
+  "sessionUpdate": "compaction_update",
+  "compactionId": "msg_123",
+  "status": "completed",
+  "summary": [{ "type": "text", "text": "..." }]
+}
+```
+
+Các client khác nhận [dấu nén](#compaction-marker) thay thế. Các lần nén của phiên con cũng vậy.
+
+### Mức sử dụng
+
+Phản hồi lời nhắc chứa `usage` từ RFD [end-turn usage](https://agentclientprotocol.com/rfds/end-turn-token-usage),
+vốn là bản nháp. `usage` cộng dồn các lệnh gọi mô hình của lời nhắc trong phiên này. Nó không bao gồm các phiên con.
+
+```json
+{ "stopReason": "end_turn", "usage": { "inputTokens": 1200, "outputTokens": 340, "totalTokens": 1540 }, "_meta": {} }
+```
+
+Trước phản hồi đó, OpenCode gửi `usage_update` từ
+RFD [session usage](https://agentclientprotocol.com/rfds/session-usage). Nó chỉ gửi khi lời nhắc đã dùng token và
+OpenCode biết kích thước ngữ cảnh của mô hình. `cost` là tổng chi phí của phiên tính bằng USD.
+
+```json
+{ "sessionUpdate": "usage_update", "used": 1540, "size": 200000, "cost": { "amount": 0.012, "currency": "USD" } }
+```
+
+### Phiên con
+
+Trong khi một lời nhắc đang chạy, OpenCode gửi các bản cập nhật từ các phiên con của nó dưới dạng thông báo `session/update` trên phiên của lời nhắc.
+Mỗi bản cập nhật mang theo `_meta["opencode/child-session"]`. OpenCode thêm tiền tố `<childSessionId>:` vào các ID lệnh gọi công cụ.
+Nó thêm tiền tố tiêu đề lệnh gọi công cụ bằng tiêu đề của phiên con nếu phiên con có tiêu đề.
+
+```json
+{
+  "sessionUpdate": "tool_call",
+  "toolCallId": "ses_child:call_1",
+  "title": "Explore the codebase: src/app.ts",
+  "_meta": {
+    "opencode/child-session": { "id": "ses_child", "parentID": "ses_123", "depth": 1, "title": "Explore the codebase" }
+  }
+}
+```
+
+| Trường     | Kiểu     | Mô tả                                                                             |
+| ---------- | -------- | --------------------------------------------------------------------------------- |
+| `id`       | `string` | ID của phiên con.                                                                 |
+| `parentID` | `string` | ID của phiên cha của phiên con.                                                   |
+| `depth`    | `number` | 1 cho phiên con của phiên lời nhắc, 2 cho phiên con của phiên con đó, và cứ tiếp. |
+| `title`    | `string` | Tiêu đề của phiên con. OpenCode bỏ qua nó khi phiên con không có tiêu đề.         |
+
+Các yêu cầu quyền từ một phiên con mang cùng khóa đó trên `toolCall._meta`. Sau khi lời nhắc kết thúc, OpenCode ngừng
+gửi các bản cập nhật của phiên con. Yêu cầu quyền và câu hỏi từ các phiên con vẫn tới được client.
+
+### Trạng thái thử lại
+
+Khi một lệnh gọi mô hình thất bại và OpenCode lên lịch thử lại, nó gửi `session_info_update` với `_meta["opencode/retry"]`.
+Khi lần thử lại bắt đầu, OpenCode gửi `"opencode/retry": null`. Hãy xóa mọi trạng thái thử lại khi phản hồi lời nhắc tới.
+
+```json
+{
+  "sessionUpdate": "session_info_update",
+  "_meta": {
+    "opencode/retry": {
+      "attempt": 1,
+      "nextRetryAt": "2026-10-02T12:00:05.000Z",
+      "error": { "type": "provider.rate-limit", "message": "Rate limit exceeded", "status": 429 }
+    }
+  }
+}
+```
+
+| Trường        | Kiểu     | Mô tả                                                                                   |
+| ------------- | -------- | --------------------------------------------------------------------------------------- |
+| `attempt`     | `number` | Số thứ tự của lần thử lại.                                                              |
+| `nextRetryAt` | `string` | Thời điểm của lần thử tiếp theo, theo định dạng ISO 8601.                               |
+| `error`       | `object` | Có `type` và `message`. Cũng có `status` và `response.body` nếu nhà cung cấp gửi chúng. |
+
+### Dấu nén
+
+Nếu client không quảng bá `session.compaction`, OpenCode báo cáo tiến độ nén dưới dạng `session_info_update` với
+`_meta["opencode/compaction"]`. OpenCode luôn dùng dấu nén cho các lần nén của phiên con.
+
+```json
+{
+  "sessionUpdate": "session_info_update",
+  "_meta": { "opencode/compaction": { "status": "started", "messageId": "msg_123", "reason": "auto" } }
+}
+```
+
+| Trường      | Kiểu     | Mô tả                                                                                              |
+| ----------- | -------- | -------------------------------------------------------------------------------------------------- |
+| `status`    | `string` | `started`, `completed` hoặc `failed`. Một lần nén bị hủy là `failed`.                              |
+| `messageId` | `string` | Ghép lúc bắt đầu của một lần nén với lúc kết thúc của nó. Hãy coi nó là một khóa không trong suốt. |
+| `reason`    | `string` | `auto` hoặc `manual`.                                                                              |
+| `error`     | `object` | Có mặt khi `status` là `failed`. Cùng cấu trúc với `error` của [lần thử lại](#retry-status).       |
+
+Dấu nén không bao gồm phần tóm tắt. Một lần nén tự động có thể thất bại mà không có dấu `started`. Khi client
+tải một phiên, OpenCode phát lại mỗi lần nén đã hoàn tất hoặc thất bại dưới dạng một dấu nén.
