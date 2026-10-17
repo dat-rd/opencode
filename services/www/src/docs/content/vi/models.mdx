@@ -106,6 +106,38 @@ với mọi mô hình, và một biến thể không xác định sẽ tạo ra 
 Mỗi biến thể có thể chứa `settings`, `headers` và `body`. Giá trị của nó được áp dụng sau giá trị của nhà cung cấp và
 giá trị của mô hình.
 
+Để thay thế các biến thể suy luận của một mô hình, hãy mô tả các bộ điều khiển suy luận của mô hình đó trong
+`capabilities.reasoning`, theo cấu trúc v2 của [models.dev](https://models.dev). OpenCode tạo các biến thể cho package
+của mô hình từ những điều khiển này:
+
+```jsonc title="opencode.jsonc"
+{
+  "providers": {
+    "openai": {
+      "models": {
+        "gpt-5.2": {
+          "capabilities": {
+            "reasoning": {
+              "supported": true,
+              "effort": ["low", "medium", "high"],
+            },
+          },
+        },
+      },
+    },
+  },
+}
+```
+
+| Trường      | Mục đích                                                                                     |
+| ----------- | --------------------------------------------------------------------------------------------- |
+| `supported` | Mô hình có suy luận hay không. `false`, hoặc `true` mà không có điều khiển nào, sẽ không thêm biến thể nào. |
+| `toggle`    | Thêm một biến thể `none` để tắt suy luận.                                                      |
+| `effort`    | Các mức độ nỗ lực sẽ được cung cấp. `default` giữ nguyên mặc định của nhà cung cấp và không thêm biến thể nào. |
+| `budget`    | Tuỳ chọn ngân sách token suy luận: `min` và `max`. Bị bỏ qua khi đã đặt `effort`.               |
+
+Các biến thể liệt kê trong `variants` được áp dụng chồng lên các biến thể được tạo từ `capabilities.reasoning`.
+
 ## Tuỳ chọn
 
 Các mục nhà cung cấp và mô hình có thể tuỳ biến request bằng `settings`, `headers` và `body`:

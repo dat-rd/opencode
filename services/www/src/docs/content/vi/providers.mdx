@@ -268,11 +268,12 @@ Thêm hoặc ghi đè mô hình trong bản đồ `models` của một nhà cung
 | `modelID`      | ID mô hình hoặc deployment được gửi tới nhà cung cấp.                                                            |
 | `name`         | Tên hiển thị.                                                                                                     |
 | `family`       | Họ mô hình dùng để gom nhóm các mô hình liên quan.                                                               |
+| `releaseDate`  | Ngày phát hành theo dạng `YYYY-MM-DD` hoặc `YYYY-MM`.                                                            |
 | `package`      | Ghi đè runtime cho mô hình này.                                                                                   |
 | `settings`     | Các tùy chọn OpenCode ở cấp mô hình và thiết lập JSON riêng cho từng package.                                     |
 | `headers`      | Request header bổ sung dạng chuỗi.                                                                                 |
 | `body`         | Các trường JSON bổ sung cho body của request.                                                                      |
-| `capabilities` | Hỗ trợ công cụ cùng các loại phương tiện đầu vào và đầu ra được chấp nhận.                                        |
+| `capabilities` | Hỗ trợ công cụ, các loại phương tiện đầu vào và đầu ra được chấp nhận, hỗ trợ nhiệt độ và các bộ điều khiển suy luận. |
 | `compatibility` | Ghi đè khả năng tương thích cho request và response.                                                               |
 | `variants`     | Các biến thể được đặt tên với `settings`, `headers` và `body` riêng.                                            |
 | `cost`         | Giá đầu vào, đầu ra và bộ nhớ đệm (tùy chọn) trên mỗi triệu token.                                               |
