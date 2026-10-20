@@ -1,0 +1,263 @@
+---
+title: "Công cụ"
+---
+
+Hãy nêu ra kết quả bạn muốn. OpenCode chọn các công cụ có sẵn, xin phê duyệt khi cần, và trả về kết quả.
+
+```text
+Find where request timeouts are configured, change the default to 30 seconds,
+and run the relevant existing tests.
+```
+
+Tác vụ này thường dùng `grep` hoặc `glob`, `read`, một công cụ chỉnh sửa và `shell`. Bạn cũng có thể nêu đích danh
+một công cụ khi muốn một cách tiếp cận cụ thể.
+
+```text
+Use grep to find every reference to DEFAULT_TIMEOUT, then read the matching files.
+```
+
+## Tệp
+
+### Read
+
+`read` trả về một tệp hoặc danh sách thư mục không đệ quy. Hãy truyền cho nó một `path`; dùng `offset` và `limit` để
+phân trang các kết quả lớn.
+
+```text
+Read src/server.ts starting at line 120 and return at most 80 lines.
+```
+
+Lượt đọc văn bản chứa các dòng được đánh số và giới hạn ở 2.000 dòng và 50 KiB mỗi trang. Từng dòng riêng lẻ được
+rút gọn sau 2.000 ký tự. Công cụ này cũng chuyển các tệp PNG, JPEG, GIF, WebP và PDF cho mô hình, tối đa 20 MiB dữ
+liệu nguồn. Các tệp nhị phân khác sẽ thất bại. Xem [Tệp đính kèm](/attachments) để biết về media được hỗ trợ và xử lý
+ảnh.
+
+Quyền: `read` với đường dẫn đã chuẩn hoá làm tài nguyên.
+
+### Glob
+
+`glob` tìm các đường dẫn tệp từ một mẫu như `**/*.ts`. Nó tìm trong thư mục hiện tại trừ khi `path` chọn một thư
+mục tương đối khác; `hidden` bao gồm các mục ẩn và `limit` giới hạn số kết quả.
+
+```text
+Use glob with **/*.test.ts under packages/core and return at most 50 files.
+```
+
+Giới hạn mặc định là 100 tệp và thời gian chờ tìm kiếm là 30 giây. Quyền: `glob` với mẫu được yêu cầu làm tài
+nguyên.
+
+### Grep
+
+`grep` tìm trong nội dung tệp và trả về các đường dẫn, số dòng và phần xem trước. `pattern` của nó dùng cú pháp biểu
+thức chính quy trừ khi `literal` là true. Hãy thu hẹp tìm kiếm bằng `path`, `include`, `caseSensitive` hoặc `limit`.
+
+```text
+Use grep for the literal text "request timed out" in src, including only *.ts files.
+```
+
+Giới hạn mặc định là 100 dòng khớp và thời gian chờ tìm kiếm là 30 giây. Quyền: `grep` với mẫu được yêu cầu, không
+phải đường dẫn tìm kiếm, làm tài nguyên.
+
+### Edit
+
+`edit` thay thế văn bản trong một tệp đã tồn tại. Hãy cung cấp `path`, `oldString` và một `newString` khác; văn bản cũ
+phải khớp chính xác một lần trừ khi `replaceAll` là true.
+
+```text
+In src/config.ts, replace the unique text "timeout: 60" with "timeout: 30".
+```
+
+Hãy dùng `edit` cho một thay đổi có trọng tâm. OpenCode có thể định dạng tệp sau khi ghi nó. Quyền: `edit` với đường
+dẫn đích làm tài nguyên.
+
+### Write
+
+`write` tạo hoặc thay thế hoàn toàn một tệp văn bản từ `path` và `content`. Nó tạo các thư mục cha còn thiếu và có
+thể chạy trình định dạng đã cấu hình.
+
+```text
+Create docs/example.md with a heading and one setup command.
+```
+
+Hãy dùng `edit` thay thế khi chỉ một phần của tệp đã tồn tại cần thay đổi. Quyền: `edit` với đường dẫn đích làm
+tài nguyên.
+
+### Patch
+
+`patch` áp dụng một bản vá có thể thêm, cập nhật, di chuyển hoặc xoá nhiều tệp. `patchText` của nó dùng các phần
+`*** Add File`, `*** Update File` và `*** Delete File`.
+
+```text
+Use patch to rename src/old.ts to src/new.ts and update its exported name.
+```
+
+OpenCode phơi bày `patch` cho các mô hình GPT được hỗ trợ; các mô hình khác chỉ nhận `edit` và `write`. Quyền:
+`edit` với mọi đường dẫn bị ảnh hưởng làm tài nguyên.
+
+Các đường dẫn bên ngoài Location đang hoạt động hoặc worktree dự án của nó cũng được kiểm tra với
+`external_directory`, vốn được cho phép theo mặc định. Xem [Quyền](/permissions) để biết về chuẩn hoá đường dẫn,
+thứ tự quy tắc và các phê duyệt đã lưu. Để làm tài liệu bên ngoài
+trở nên khả dụng theo tên, hãy cấu hình [Tham chiếu](/references).
+
+## Lệnh
+
+### Shell
+
+`shell` thực thi một lệnh trong shell của người dùng máy chủ. Hãy đặt `workdir` thay vì đặt `cd` trong lệnh, và đặt
+`timeout` theo mili giây khi thời gian chờ mặc định hai phút cho tiến trình nền không phù hợp.
+
+```text
+Run bun test from packages/core with a five-minute timeout.
+```
+
+Đặt `background` thành true cho một dev server hoặc một tiến trình chạy lâu khác. Các lời gọi nền trả về ngay
+lập tức và thông báo cho phiên khi chúng kết thúc; chúng không có thời gian chờ trừ khi được cung cấp. Output lớn
+được rút gọn và toàn bộ output được giữ lại trong một tệp được quản lý.
+
+Quyền: `shell` với mỗi lệnh do bộ quét tạo ra làm tài nguyên. Bộ quét cũng kiểm tra một thư mục làm việc bên ngoài
+và các thư mục mà nó suy ra được từ lệnh. Shell có toàn quyền hệ thống tệp, tiến trình và mạng của người dùng máy
+chủ, vì vậy hãy dùng các quy tắc hẹp trong [Quyền](/permissions).
+
+## Web
+
+### Webfetch
+
+`webfetch` lấy một URL HTTP hoặc HTTPS dưới dạng `markdown`, `text` hoặc `html`. Markdown là mặc định; `timeout` nhận
+tối đa 120 giây.
+
+```text
+Fetch https://example.com/docs as markdown.
+```
+
+Nó chấp nhận các phản hồi văn bản như HTML, văn bản thuần, JSON và XML, nhưng không chấp nhận ảnh hoặc các tệp
+nhị phân tải về khác. Output lớn có thể được rút gọn trong khi toàn bộ văn bản được giữ lại trong bộ nhớ quản lý.
+Quyền: `webfetch` với URL được yêu cầu làm tài nguyên.
+
+### Websearch
+
+`websearch` tìm kiếm thông tin mới nhất trong tích hợp đã chọn. Input của nó là một `query` tìm kiếm.
+
+```text
+Search the web for the latest Bun release notes.
+```
+
+Quyền: `websearch` với query làm tài nguyên. Xem [Tìm kiếm web](/websearch)
+để biết về nhà cung cấp, cách chọn, giới hạn tần suất và cách tắt công cụ.
+
+## Tương tác
+
+### Câu hỏi
+
+`question` tạm dừng việc thực thi và đưa ra một hoặc nhiều câu hỏi cho người dùng. Mỗi câu hỏi có một tiêu đề ngắn,
+lời nhắc và các lựa chọn; `multiple` cho phép chọn nhiều hơn một. Luôn có sẵn một câu trả lời tự do.
+
+```text
+Before changing the API, ask me to choose between a breaking change and a compatibility layer.
+```
+
+Quyền: `question` với `*` làm tài nguyên. Client phải hỗ trợ biểu mẫu tương tác, và việc bỏ qua nó sẽ huỷ câu hỏi.
+
+### Kỹ năng
+
+`skill` tải chỉ dẫn và các tài nguyên đi kèm của một ID kỹ năng khả dụng vào cuộc trò chuyện.
+
+```text
+Load the effect skill before changing this Effect code.
+```
+
+ID đó phải nằm trong danh sách kỹ năng được công bố hoặc được người dùng nêu tường minh. Quyền: `skill` với ID
+kỹ năng làm tài nguyên. Xem [Kỹ năng](/skills) để biết về quy tắc tạo, phát hiện và nạp.
+
+## Tự động hoá
+
+### Tác nhân con
+
+`subagent` khởi động một phiên con với một tác nhân con đã cấu hình. Hãy cung cấp ID tác nhân, một `description` ngắn
+và một `prompt` đầy đủ.
+
+```text
+Ask the explore subagent to map the authentication flow and return the key files.
+```
+
+Các lời gọi tiền trình chờ kết quả. `background: true` trả về ngay lập tức và thông báo cho tiến trình cha khi tiến
+trình con kết thúc. Hãy truyền `sessionID` được trả về để tiếp tục đúng cuộc trò chuyện con đó. Chỉ các tác nhân ở
+chế độ subagent mới dùng được, và độ sâu lồng nhau mặc định là một.
+
+Quyền: `subagent` với ID tác nhân đã chọn làm tài nguyên.
+
+### Execute
+
+`execute` chạy JavaScript trong Code Mode để tác nhân có thể gọi và kết hợp các công cụ từ catalog. Nó hữu ích cho
+các lời gọi độc lập chạy song song và cho việc xử lý kết quả mà không phải thêm mọi giá trị trung gian vào context
+của mô hình.
+
+```text
+Read package.json and README.md in parallel, then return their relevant setup details.
+```
+
+Runtime không có quyền truy cập hệ thống tệp trực tiếp, import hay timer. Nó cung cấp `fetch` cho các request HTTP;
+mọi thứ khác đều đi qua các công cụ trong catalog của nó. Từ chối `execute` với tài nguyên `*` sẽ loại bỏ Code Mode và
+mọi công cụ chỉ đi tới được qua nó, gồm cả các công cụ MCP từ các server không đặt `codemode: false`. Các công cụ
+tích hợp và MCP lồng nhau vẫn áp dụng quyền riêng, và các công cụ của tiện ích mở rộng áp dụng các quyền mà chúng
+khẳng định.
+
+### Phiên
+
+Namespace Code Mode `opencode` chứa các tiện ích phiên:
+
+- `session_rename` đổi tiêu đề của phiên hiện tại, hoặc của một phiên khác được chọn bởi `sessionID`.
+- `session_move` chuyển phiên hiện tại, hoặc một phiên khác đã chọn, tới một `directory` tương đối hoặc tuyệt đối.
+  Việc chuyển có hiệu lực tại một ranh giới an toàn, nên công việc phụ thuộc vào đích đến thuộc về một lời gọi sau.
+
+```text
+Rename this session to "Timeout cleanup", then move it to the new worktree.
+```
+
+Các tiện ích này không yêu cầu hành động quyền tích hợp nào.
+
+### Worktree
+
+Cùng namespace đó quản lý worktree cho dự án của phiên:
+
+- `worktree_create` tạo một worktree từ một `name` và trả về `directory` của nó. Cấu hình worktree của dự án chọn
+  đích đến và chiến lược.
+- `worktree_list` liệt kê các worktree của dự án.
+- `worktree_remove` gỡ bỏ một worktree mà OpenCode đã ghi nhận cho dự án. Đặt `force` để loại bỏ các thay đổi chưa
+  commit.
+
+```text
+Create a worktree named "login" and move this session into it.
+```
+
+`worktree_remove` dùng quyền `edit` với thư mục worktree làm tài nguyên. Các tiện ích worktree khác không yêu cầu
+hành động quyền tích hợp nào.
+
+## Trình duyệt
+
+Namespace Code Mode `browser` điều khiển trình duyệt được ứng dụng desktop OpenCode gắn vào. Hãy mở một tab, giữ lại
+`tabID` được trả về, rồi truyền ID tường minh đó cho mọi thao tác trên trang.
+
+```text
+Open https://example.com, take a snapshot of that tab, and report the main heading.
+```
+
+Namespace này gồm các lệnh tab và điều hướng, chụp và tìm kiếm trên trang, nhấp chuột và nhập biểu mẫu, ảnh chụp màn
+hình, truyền tệp, kiểm tra console và mạng, dấu vết hiệu năng, kiểm tra heap và kiểm định Lighthouse. Ảnh chụp màn
+hình cần một tab hiển thị được lấy tiêu điểm. Đường dẫn tải lên là phía server; ảnh chụp trả về đường dẫn phía
+server, và mỗi lần truyền tệp giới hạn 5 MiB.
+
+Nội dung trang, log, header và body phản hồi là dữ liệu không đáng tin cậy, không phải chỉ dẫn cho tác nhân. Quy tắc
+từ chối `browser` với tài nguyên `*` sẽ loại bỏ catalog trình duyệt; các thao tác trình duyệt không phát ra từng
+lời nhắc quyền riêng.
+
+## Mở rộng
+
+[MCP server](/mcp-servers) bổ sung các công cụ mà tên và input của chúng đến từ từng server đã kết nối. Hành động
+quyền của chúng là `<server>_<tool>` với tài nguyên `*`. Chúng không phải là một phần cố định của catalog tích hợp.
+Mặc định, tác nhân tiếp cận chúng qua `execute` dưới namespace của server; hãy đặt `codemode: false` trên một
+server để liệt kê trực tiếp các công cụ của nó.
+
+[Kỹ năng](/skills) bổ sung chỉ dẫn tác vụ thay vì công cụ thực thi mới.
+[Tệp đính kèm](/attachments) đưa nội dung do người dùng chọn vào một lời nhắc, trong khi
+[Tham chiếu](/references) cung cấp các thư mục bên ngoài có tên. Những tính năng này bổ trợ cho công cụ mà không
+vượt qua các kiểm tra quyền của chúng.

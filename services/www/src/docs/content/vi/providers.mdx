@@ -1,0 +1,655 @@
+---
+title: "Nhà cung cấp"
+---
+
+OpenCode tích hợp danh mục nhà cung cấp và mô hình từ [mô hình.dev](https://models.dev). Với hầu hết nhà cung cấp, hãy kết
+nối tài khoản trước, rồi chọn một mô hình.
+
+## Thiết lập
+
+Chạy `/connect`, chọn một nhà cung cấp và nhập thông tin đăng nhập của họ. Sau đó chạy `/models` để chọn một mô hình của
+nhà cung cấp đó.
+
+```text
+/connect
+/models
+```
+
+## Go
+
+[OpenCode Go](/console/go) là một gói đăng ký tùy chọn dành cho các mô hình lập trình mã đã được đội ngũ OpenCode kiểm
+thử. Hãy đăng ký trong [console](https://opencode.ai/console), sao chép API key của bạn, rồi kết nối dưới tên **OpenCode
+Go**.
+
+```text
+/connect
+# Select OpenCode Go, then paste your API key.
+/models
+```
+
+Xem [hướng dẫn Go](/console/go) để biết chi tiết về hạn mức sử dụng, endpoint và quyền riêng tư.
+
+## Tùy chỉnh
+
+Hãy thêm một nhà cung cấp khi API của họ chưa có trong danh mục. Ví dụ tương thích OpenAI dưới đây khai báo cùng lúc thông
+tin đăng nhập, package runtime, endpoint và mô hình đầu tiên.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "acme": {
+      "name": "Acme",
+      "env": ["ACME_API_KEY"],
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "https://llm.acme.example/v1",
+      },
+      "models": {
+        "qwen3-coder": {
+          "name": "Qwen 3 Coder",
+        },
+      },
+    },
+  },
+}
+```
+
+Đối tượng `providers` được khóa theo ID nhà cung cấp dùng trong các tham chiếu mô hình, chẳng hạn như `acme/qwen3-coder`.
+
+| Trường    | Mục đích                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`    | Tên hiển thị.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `env`     | Danh sách có thứ tự các tên biến môi trường có thể cung cấp thông tin đăng nhập.                                                                                                                                                                                                                                                                                                                                                                           |
+| `package` | Package runtime của nhà cung cấp.                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `canonical` | ID nhà cung cấp tích hợp mà nhà cung cấp này kế thừa mặc định danh mục.                                                                                                                                                                                                                                                                                                                                                                                 |
+| `compatibility` | Ghi đè khả năng tương thích cho request và response của mọi mô hình thuộc nhà cung cấp này. `compatibility` của mô hình ghi đè từng trường riêng lẻ. `supportsThinkingBlockBinding` và `supportsEffortUpdates` chỉ dùng ở cấp mô hình.                                                                                                                           |
+| `settings` | Các tùy chọn OpenCode có kiểu và các tùy chọn JSON được truyền cho package runtime.                                                                                                                                                                                                                                                                                                                                                                        |
+| `headers`  | Các HTTP header dạng chuỗi được thêm vào request.                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `body`     | Các trường JSON được hợp nhất vào body của request.                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `models`   | Các mô hình cần thêm hoặc ghi đè, khóa theo ID mô hình của OpenCode.                                                                                                                                                                                                                                                                                                                                                                                       |
+
+## Endpoint
+
+Ghi đè `settings.baseURL` để đưa một nhà cung cấp trong danh mục qua một proxy hoặc endpoint tương thích. Package, các mô
+hình và kết nối hiện có của nhà cung cấp đó vẫn được áp dụng.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "anthropic": {
+      "settings": {
+        "baseURL": "https://llm-proxy.example.com/anthropic",
+      },
+    },
+  },
+}
+```
+
+`settings` phụ thuộc vào từng package. Một trường chỉ có tác dụng khi package đã chọn hỗ trợ nó.
+
+## Requests
+
+Dùng `headers` cho các HTTP header bổ sung và `body` cho các trường JSON cần hợp nhất vào mọi body của request.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "openai": {
+      "headers": {
+        "X-Gateway-Tenant": "engineering",
+      },
+      "body": {
+        "metadata": {
+          "application": "opencode",
+        },
+      },
+    },
+  },
+}
+```
+
+Cả hai trường cũng có thể được đặt trên một mô hình hoặc một biến thể khi chỉ một phần lưu lượng của nhà cung cấp cần
+ghi đè.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "openai": {
+      "models": {
+        "gpt-5.2": {
+          "headers": { "X-Model-Tier": "coding" },
+          "variants": [
+            {
+              "id": "batch",
+              "body": { "service_tier": "flex" },
+            },
+          ],
+        },
+      },
+    },
+  },
+}
+```
+
+## Thời gian chờ
+
+Các request HTTP chờ tối đa năm phút để nhận response header và tối đa năm phút giữa các phần của response được truyền theo
+luồng. Hãy đặt `settings.headerTimeout` hoặc `settings.chunkTimeout` của nhà cung cấp thành số mili giây để thay đổi một
+giới hạn, hoặc thành `false` để tắt giới hạn đó. `settings.timeout` giới hạn thêm toàn bộ request từ lúc gửi đến khi
+response hoàn tất; nó không có giá trị mặc định. Các thiết lập cấu hình này áp dụng cho toàn nhà cung cấp, không phải theo
+từng mô hình hoặc biến thể. Trên WebSocket, `chunkTimeout` thay vào đó giới hạn khoảng cách giữa các frame và mặc định
+là ba mươi phút.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "anthropic": {
+      "settings": {
+        "headerTimeout": 600000,
+        "chunkTimeout": false,
+      },
+    },
+  },
+}
+```
+
+Một request vượt quá bất kỳ giới hạn nào sẽ thất bại với lỗi truyền tải. OpenCode thử lại một request bị hết thời gian tối
+đa ba lần trước khi từ bỏ.
+
+## Mã hóa request
+
+`settings.encoding` nén body của các request HTTP bằng `"zstd"` hoặc `"gzip"`, hoặc gửi JSON thuần với `"none"`. Hãy đặt
+nó trên một nhà cung cấp, mô hình hoặc biến thể; giá trị cụ thể nhất sẽ được ưu tiên. Chỉ bật một cách mã hóa mà
+endpoint có thể giải mã: hầu hết nhà cung cấp và gateway từ chối body đã nén. OpenAI mặc định dùng `"zstd"` khi bạn đăng
+nhập bằng ChatGPT và không cấu hình `baseURL` tùy chỉnh; API key sẽ gửi JSON thuần. Tin nhắn WebSocket không bị ảnh hưởng.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "openai": {
+      "settings": { "encoding": "none" },
+    },
+  },
+}
+```
+
+## Package
+
+Trường `package` chọn runtime giao tiếp với nhà cung cấp. Hãy dùng runtime tương thích cho các API triển khai định dạng
+request của OpenAI.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "acme": {
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "https://llm.acme.example/v1",
+      },
+      "models": {
+        "qwen3-coder": {},
+      },
+    },
+  },
+}
+```
+
+Các package gốc bao gồm:
+
+- `@opencode/ai/providers/openai`
+- `@opencode/ai/providers/openai/chat`
+- `@opencode/ai/providers/openai/responses`
+- `@opencode/ai/providers/openai-compatible`
+- `@opencode/ai/providers/openai-compatible/responses`
+- `@opencode/ai/providers/anthropic`
+- `@opencode/ai/providers/anthropic-compatible`
+- `@opencode/ai/providers/google`
+- `@opencode/ai/providers/google-vertex`
+- `@opencode/ai/providers/google-vertex/gemini`
+- `@opencode/ai/providers/google-vertex/chat`
+- `@opencode/ai/providers/google-vertex/responses`
+- `@opencode/ai/providers/google-vertex/messages`
+- `@opencode/ai/providers/azure`
+- `@opencode/ai/providers/azure/chat`
+- `@opencode/ai/providers/azure/responses`
+- `@opencode/ai/providers/amazon-bedrock`
+- `@opencode/ai/providers/amazon-bedrock/mantle`
+- `@opencode/ai/providers/amazon-bedrock/mantle/chat`
+- `@opencode/ai/providers/amazon-bedrock/mantle/messages`
+- `@opencode/ai/providers/amazon-bedrock/mantle/responses`
+- `@opencode/ai/providers/openrouter`
+- `@opencode/ai/providers/xai`
+
+Bạn cũng có thể dùng một npm package như `@acme/opencode-provider` hoặc một URL `file://` tuyệt đối cho package cục bộ.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "acme": {
+      "package": "@acme/opencode-provider",
+      "models": { "acme-coder": {} },
+    },
+  },
+}
+```
+
+## Mô hình
+
+Thêm hoặc ghi đè mô hình trong bản đồ `models` của một nhà cung cấp. Khoá của bản đồ là ID mô hình mà OpenCode sử dụng;
+`modelID` thay đổi ID được gửi tới nhà cung cấp.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "openai/coding",
+  "providers": {
+    "openai": {
+      "models": {
+        "coding": {
+          "modelID": "gpt-5.2",
+          "name": "GPT-5.2 Coding",
+        },
+      },
+    },
+  },
+}
+```
+
+| Trường         | Mục đích                                                                                                       |
+| -------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `modelID`      | ID mô hình hoặc deployment được gửi tới nhà cung cấp.                                                            |
+| `name`         | Tên hiển thị.                                                                                                     |
+| `family`       | Họ mô hình dùng để gom nhóm các mô hình liên quan.                                                               |
+| `releaseDate`  | Ngày phát hành theo dạng `YYYY-MM-DD` hoặc `YYYY-MM`.                                                            |
+| `package`      | Ghi đè runtime cho mô hình này.                                                                                   |
+| `settings`     | Các tùy chọn OpenCode ở cấp mô hình và thiết lập JSON riêng cho từng package.                                     |
+| `headers`      | Request header bổ sung dạng chuỗi.                                                                                 |
+| `body`         | Các trường JSON bổ sung cho body của request.                                                                      |
+| `capabilities` | Hỗ trợ công cụ, các loại phương tiện đầu vào và đầu ra được chấp nhận, hỗ trợ nhiệt độ và các bộ điều khiển suy luận. |
+| `compatibility` | Ghi đè khả năng tương thích cho request và response.                                                               |
+| `variants`     | Các biến thể được đặt tên với `settings`, `headers` và `body` riêng.                                            |
+| `cost`         | Giá đầu vào, đầu ra và bộ nhớ đệm (tùy chọn) trên mỗi triệu token.                                               |
+| `limit`        | Giới hạn token cho ngữ cảnh, đầu vào và đầu ra.                                                                   |
+| `disabled`     | Loại bỏ mô hình khỏi danh sách chọn khi là `true`.                                                                |
+
+Xem [Mô hình](/models) để biết về cách chọn, giá trị mặc định, khả năng, giới hạn, chi phí và biến thể.
+
+## Azure
+
+Endpoint danh mục tiêu chuẩn của Azure cần tên tài nguyên ngoài thông tin đăng nhập của nó. Hãy đặt
+`settings.resourceName` một lần, rồi kết nối bằng API key hoặc dùng phiên Microsoft Entra ID từ Azure CLI như mô tả trong
+[Tài khoản nhà cung cấp](/cli/providers).
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "azure": {
+      "settings": {
+        "resourceName": "my-models",
+      },
+    },
+  },
+}
+```
+
+Tìm **Resource name** trong [Azure portal](https://portal.azure.com/) hoặc [Microsoft Foundry](https://ai.azure.com/). Đó
+cũng là phần đầu của các endpoint như `https://my-models.openai.azure.com/` và `https://my-models.services.ai.azure.com/`.
+
+```bash
+az cognitiveservices account list \
+  --query "[].{name:name,resourceGroup:resourceGroup}" \
+  --output table
+```
+
+Để dùng Entra ID, hãy cài [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli), đăng nhập, rồi chọn
+**Microsoft Entra ID (Azure CLI)** khi kết nối Azure.
+
+```bash
+az login
+```
+
+Hãy nhập tên tài nguyên khi kết nối nếu nó chưa được cấu hình hoặc môi trường cung cấp. Tên tài nguyên được lưu
+cùng một kết nối sẽ được ưu tiên hơn cấu hình; hãy kết nối lại để thay đổi.
+
+Các kết nối qua Azure CLI dùng tài khoản được chọn trong Azure CLI. Với một tài nguyên thuộc tenant hoặc gói đăng ký
+khác,
+hãy chọn rõ ràng cả hai.
+
+```bash
+az login --tenant TENANT_ID
+az account set --subscription NAME_OR_ID
+```
+
+Thay vì cấu hình, `AZURE_RESOURCE_NAME` cung cấp tên tài nguyên cho máy chủ OpenCode. Biến cũ
+`AZURE_COGNITIVE_SERVICES_RESOURCE_NAME` cũng hoạt động.
+
+### Deployment
+
+Azure chỉ phục vụ một mô hình qua deployment, nên OpenCode liệt kê các deployment của tài nguyên của bạn và hiển thị
+chúng
+thay cho toàn bộ danh mục Azure. Danh sách được tải ở nền sau khi khởi động, sau khi kết nối và sau khi chuyển tài khoản.
+Để nhận một deployment được thêm sau đó, hãy khởi động lại OpenCode hoặc kết nối lại.
+
+- Cho đến khi danh sách được tải cho một kết nối, hoặc nếu việc tải thất bại, toàn bộ danh mục vẫn khả dụng.
+- Một lần tải lại thất bại cho cùng kết nối đó sẽ giữ danh sách hoàn chỉnh gần nhất.
+- Việc chuyển tài khoản không bao giờ hiển thị danh sách của tài khoản trước; tài khoản mới bắt đầu với toàn bộ danh mục.
+- Deployment kế thừa giới hạn, chi phí và khả năng từ mô hình danh mục của chúng.
+
+Tên deployment chính là ID mô hình của chúng, ở dạng chữ thường vì Azure không phân biệt chữ hoa chữ thường trong tên, ví
+dụ `azure/gpt-production`. Một deployment được đặt tên theo mô hình của nó, như `gpt-5-mini`, sẽ giữ ID trong danh mục.
+Các ID này giữ nguyên khi các deployment khác được thêm hoặc xóa.
+
+OpenCode khớp một deployment với danh mục dựa trên mô hình mà nó triển khai, hoặc dựa trên tên của nó khi Azure viết tên
+mô hình khác đi, như `gpt-4` cho GPT-4 Turbo. Một deployment được đặt tên theo một mô hình khác, như `gpt-5` triển khai
+`gpt-5-mini`, sẽ hiển thị tên, giới hạn và chi phí của mô hình đó.
+
+Với Azure CLI, OpenCode liệt kê deployment thông qua Azure management API, vốn cần quyền đọc tài nguyên. Nếu thất
+bại, và luôn khi dùng API key, nó dùng danh sách deployment cũ của tài nguyên. Quá trình khám phá đọc mọi trang trước khi
+công bố danh sách. Một `settings.baseURL` tùy chỉnh sẽ giữ nguyên danh mục.
+
+Hãy cấu hình một deployment một cách tường minh khi mô hình của nó không có trong danh mục, chẳng hạn như một mô hình đã
+tinh chỉnh, hoặc để tự ánh xạ một ID mô hình tới một deployment. OpenCode ghi cảnh báo nêu tên những deployment như vậy. Các
+mô hình được cấu hình tường minh luôn được giữ lại.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "azure": {
+      "models": {
+        "gpt-5-mini": {
+          "modelID": "gpt-production",
+        },
+      },
+    },
+  },
+}
+```
+
+Danh tính của bạn cần một trong các vai trò sau:
+
+- **Cognitive Services OpenAI User** cho các mô hình Azure OpenAI.
+- **Cognitive Services User** cho các mô hình Foundry khác.
+
+Nếu một request dùng token từ sai tenant, hãy đăng nhập lại với tenant cần thiết.
+
+```bash
+az login --tenant TENANT_ID
+```
+
+## Bedrock
+
+Amazon Bedrock dùng chuỗi thông tin đăng nhập mặc định của AWS. Một AWS profile có tên là cách thiết lập đơn giản và bền
+vững nhất; OpenCode cũng nhận diện môi trường access key, web identity và thông tin đăng nhập của container.
+
+```bash
+aws configure sso --profile work
+aws sso login --profile work
+```
+
+Chọn profile và vùng trong cài đặt của nhà cung cấp. Một `profile` đã cấu hình, `AWS_PROFILE`, `AWS_ACCESS_KEY_ID`, tệp
+token web identity hoặc URI thông tin đăng nhập của container sẽ kích hoạt nhà cung cấp; chỉ một vùng thì không.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "amazon-bedrock": {
+      "settings": {
+        "profile": "work",
+        "region": "us-west-2",
+      },
+    },
+  },
+}
+```
+
+Khi không có vùng tường minh, OpenCode dùng `AWS_REGION`, rồi `AWS_DEFAULT_REGION`, rồi `us-east-1`. Với một endpoint
+riêng tư hoặc endpoint VPC, hãy đặt `baseURL` trong khi giữ nguyên profile và vùng.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "amazon-bedrock": {
+      "settings": {
+        "profile": "work",
+        "region": "us-west-2",
+        "baseURL": "https://bedrock-runtime.vpce.example.com",
+      },
+    },
+  },
+}
+```
+
+API key của Bedrock dùng `AWS_BEARER_TOKEN_BEDROCK`. Các biến AWS khác cấp dữ liệu cho SigV4 và không được lưu dưới dạng
+tài khoản API key của OpenCode.
+
+## Vertex
+
+Google Vertex dùng Application Default Credentials (ADC) và cần một project trước khi các mô hình của nó khả dụng. Hãy tạo
+ADC cục bộ, rồi đặt project và location trong cài đặt của nhà cung cấp.
+
+```bash
+gcloud auth application-default login
+```
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "google-vertex": {
+      "settings": {
+        "project": "my-project",
+        "location": "us-central1",
+      },
+    },
+  },
+}
+```
+
+OpenCode cũng lấy project theo thứ tự từ `GOOGLE_VERTEX_PROJECT`, `GOOGLE_CLOUD_PROJECT`, `GCP_PROJECT` hoặc
+`GCLOUD_PROJECT`. Nó lấy location từ `GOOGLE_VERTEX_LOCATION`, `GOOGLE_CLOUD_LOCATION` hoặc `VERTEX_LOCATION`, và mặc định
+là `us-central1`.
+
+```bash
+GOOGLE_CLOUD_PROJECT=my-project GOOGLE_VERTEX_LOCATION=europe-west4 opencode --standalone
+```
+
+Service account hoạt động qua cùng đường dẫn ADC. Hãy trỏ `GOOGLE_APPLICATION_CREDENTIALS` tới tệp JSON của service
+account và vẫn cung cấp project qua settings hoặc một trong các biến project ở trên.
+
+```bash
+GOOGLE_APPLICATION_CREDENTIALS=/secure/vertex.json \
+GOOGLE_CLOUD_PROJECT=my-project \
+opencode --standalone
+```
+
+Dùng một ID nhà cung cấp `google-vertex` duy nhất cho các mô hình Gemini, Anthropic và các mô hình Vertex tương thích
+OpenAI trong danh mục. ID nhà cung cấp `google-vertex-anthropic` cũ không khả dụng trong V2.
+
+## Copilot
+
+GitHub Copilot hỗ trợ OAuth qua thiết bị thay vì nhập API key thủ công. Kết nối **GitHub Copilot**, chọn GitHub.com hoặc
+GitHub Enterprise, hoàn tất luồng đăng nhập trên thiết bị, rồi mở `/models`.
+
+```text
+/connect
+# Select GitHub Copilot, then Login with GitHub Copilot.
+/models
+```
+
+Với GitHub Enterprise, hãy nhập URL hoặc tên miền triển khai khi được yêu cầu. OpenCode dùng endpoint API Copilot do
+GitHub trả về khi có sẵn; nếu không, nó suy ra endpoint từ tên miền của enterprise.
+
+```text
+company.ghe.com
+```
+
+Tài khoản được kết nối cần có quyền truy cập Copilot Chat. Nếu GitHub báo là không có quyền hạn, hãy đăng ký Copilot
+Free hoặc nhờ tổ chức cấp một chỗ dùng Copilot, rồi kết nối lại. OpenCode lấy danh sách mô hình hiện tại của tài khoản sau
+khi đăng nhập và mỗi khi tài khoản Copilot đang hoạt động thay đổi.
+
+## Ollama
+
+Hãy khởi động Ollama và tải một mô hình. OpenCode dò `http://127.0.0.1:11434`, khám phá các mô hình completion và thêm
+chúng vào `/models` mà không cần kết nối tài khoản.
+
+```bash
+ollama serve
+ollama pull qwen3:8b
+```
+
+Trỏ OpenCode tới một máy chủ Ollama từ xa hoặc qua proxy bằng `settings.baseURL`. Hãy bao gồm `/v1`; OpenCode suy ra các
+đường dẫn khám phá gốc `/api/tags` và `/api/show` từ đó. `apiKey` là tùy chọn và được gửi dưới dạng bearer token cho các
+request khám phá và mô hình.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "ollama": {
+      "settings": {
+        "baseURL": "https://ollama.example.com/v1",
+        "apiKey": "{env:OLLAMA_API_KEY}",
+      },
+    },
+  },
+}
+```
+
+Quá trình khám phá làm mới theo chu kỳ và giữ danh sách thành công gần nhất trong thời gian gián đoạn tạm thời. Các mô hình
+chỉ hỗ trợ embedding sẽ không xuất hiện vì OpenCode chỉ thêm các mô hình có khả năng `completion` trong metadata Ollama.
+
+## Runtime
+
+LM Studio và vLLM cũng có tính năng khám phá cục bộ tích hợp. Endpoint mặc định của chúng là
+`http://127.0.0.1:1234/v1` và `http://127.0.0.1:8000/v1`.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "lmstudio": {
+      "settings": { "baseURL": "http://gpu-host:1234/v1" },
+    },
+    "vllm": {
+      "settings": { "baseURL": "http://gpu-host:8000/v1" },
+    },
+  },
+}
+```
+
+LM Studio khám phá các mô hình ngôn ngữ từ `/api/v1/models`. vLLM kiểm tra `/health` trước khi đọc `/v1/models`; việc khám
+phá của nó không thể suy ra hỗ trợ công cụ, nên các mô hình vLLM được khám phá sẽ bắt đầu với công cụ bị tắt. Với một runtime
+tương thích OpenAI khác, hãy dùng công thức [nhà cung cấp tùy chỉnh](#custom) và liệt kê rõ các mô hình của nó.
+
+## Gateway
+
+OpenRouter dùng runtime và danh mục gốc của nó. Hãy cung cấp `OPENROUTER_API_KEY` cho máy chủ OpenCode hoặc kết nối một
+tài khoản OpenRouter, rồi tham chiếu mô hình bằng ID mô hình OpenRouter đầy đủ sau tiền tố nhà cung cấp.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "openrouter/anthropic/claude-sonnet-4",
+}
+```
+
+Hãy giữ package gốc của OpenRouter khi ghi đè endpoint của nó hoặc định tuyến qua một gateway tương thích OpenRouter. Điều
+này giữ nguyên hành vi request và suy luận của OpenRouter.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "openrouter": {
+      "settings": {
+        "baseURL": "https://openrouter-gateway.example.com/api/v1",
+      },
+      "headers": {
+        "X-Gateway-Tenant": "engineering",
+      },
+    },
+  },
+}
+```
+
+Với một gateway cung cấp API tương thích OpenAI nhưng có danh sách mô hình riêng, hãy định nghĩa một nhà cung cấp tùy
+chỉnh. Khoá cấu hình sẽ trở thành tiền tố nhà cung cấp và mỗi khoá `models` sẽ trở thành một ID mô hình có thể chọn.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "company/coder",
+  "providers": {
+    "company": {
+      "env": ["COMPANY_GATEWAY_KEY"],
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "https://gateway.example.com/v1",
+      },
+      "models": {
+        "coder": { "modelID": "upstream/coder-v2" },
+      },
+    },
+  },
+}
+```
+
+## Lỗi
+
+Lỗi của nhà cung cấp và mô hình thường chỉ ra giai đoạn bị lỗi. Hãy kiểm tra môi trường của tiến trình máy chủ và ID mô hình
+chính xác trước khi đổi package.
+
+| Lỗi hoặc triệu chứng                                                                                                                                    | Kiểm tra                                                                                                                                                                                                                                                                     |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `No model is available for session ...`                                                                                                                 | Hiện không có mô hình nào đang bật để chọn. Hãy hoàn tất thiết lập riêng cho nhà cung cấp, rồi chọn một mô hình trong `/models`.                                                                                                                                   |
+| `Model unavailable: provider/model`                                                                                                                     | Nhà cung cấp không hoạt động, ID mô hình không tồn tại hoặc đã bị tắt, hoặc khám phá động không còn trả về mô hình đó. Với các bí danh tùy chỉnh, hãy kiểm tra khoá của bản đồ `models` thay vì `modelID`.                                                                                  |
+| `Cannot initialize provider/model: NAME is required to resolve the provider endpoint`                                                                      | Vẫn còn một placeholder `${NAME}` trong `baseURL`. Hãy đặt biến đó trên máy chủ OpenCode hoặc thay template bằng một endpoint đầy đủ.                                                                                                                                      |
+| `Azure resource name is missing`                                                                                                                         | Đặt `providers.azure.settings.resourceName`, `AZURE_RESOURCE_NAME` hoặc một `settings.baseURL` đầy đủ.                                                                                                                                                                            |
+| Vertex không xuất hiện                                                                                                                                  | Đặt một project có thể phân giải trong cài đặt của nhà cung cấp hoặc một biến project được hỗ trợ. Chỉ ADC không kích hoạt nhà cung cấp.                                                                                                                                    |
+| Bedrock không xuất hiện                                                                                                                                 | Cung cấp một profile hoặc một đầu vào chuỗi thông tin đăng nhập AWS được hỗ trợ khác. Chỉ `AWS_REGION` chỉ chọn một vùng.                                                                                                                                                       |
+| Ollama không có mô hình nào                                                                                                                              | Xác nhận máy chủ phơi bày `/api/tags` và `/api/show` tại đường dẫn suy ra từ `baseURL`, và `/api/show` báo khả năng `completion`.                                                                                                                                             |
+| Copilot không có mô hình nào                                                                                                                             | Xác nhận tài khoản OAuth đang hoạt động có quyền truy cập Copilot Chat. Một lần đồng bộ mô hình thất bại được ghi nhận với thông điệp `failed to sync GitHub Copilot models`.                                                                                                     |
+
+V2 từ chối các ID nhà cung cấp đã ngừng dùng và yêu cầu bản thay thế trực tiếp. Hãy dùng `azure/<model>` thay cho
+`azure-cognitive-services/<model>`, và `google-vertex/<model>` thay cho `google-vertex-anthropic/<model>`.
+
+## WebSocket
+
+Các mô hình OpenAI, xAI và Azure Responses được hỗ trợ có thể giữ một kết nối WebSocket mở cho mỗi phiên. Các bước liên
+tiếp dùng lại phần đầu request không thay đổi và chỉ gửi nội dung được thêm vào kể từ response trước, giúp giảm lượng dữ
+liệu tải lên trong các phiên dài.
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "openai": {
+      "settings": { "transport": "http" },
+    },
+  },
+}
+```
+
+Hành vi WebSocket tuân theo các quy tắc sau:
+
+- Các nhà cung cấp tích hợp bật các route được hỗ trợ theo chính sách của riêng họ.
+- `settings.transport: "websocket"` của nhà cung cấp bật tính năng này; `"http"` tắt tính năng.
+- `"websocket"` trên một route không có kênh WebSocket sẽ ghi cảnh báo và chuyển về HTTP.
+- Tính năng compaction của nhà cung cấp OpenAI dùng cùng kết nối đó.
+- xAI chỉ tiếp tục từ các response đã lưu. Với giá trị mặc định `store: false`, mỗi bước được gửi toàn bộ qua kết nối
+  được dùng lại.
+- Một socket đã đóng sẽ kết nối lại ở bước tiếp theo. Nếu không thể mở kết nối, phiên sẽ tiếp tục qua HTTP.
+- Các tiện ích mở rộng nhà cung cấp có hook `http.request` hoặc `http.response` vẫn dùng HTTP để mỗi request đều có thể quan sát
+  được.

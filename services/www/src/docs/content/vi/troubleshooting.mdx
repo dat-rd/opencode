@@ -1,0 +1,188 @@
+---
+title: "Khắc phục sự cố"
+---
+
+<Callout type="tip">
+  Bạn có thể nhờ OpenCode tự gỡ lỗi. Hãy mô tả sự cố và nhờ nó dùng trang khắc phục sự cố này; nó có thể đọc các bước bên dưới,
+  kiểm tra service và nhật ký của nó, rồi giúp xác định vấn đề.
+</Callout>
+
+OpenCode dùng kiến trúc client-server. Một server nền sở hữu các phiên, tiện ích mở rộng, quyền và trạng thái ứng dụng khác. Hãy bắt đầu
+bằng cách xác định sự cố nằm ở một client, ở server dùng chung hay ở một dự án cụ thể.
+
+## Kiểm tra service nền
+
+Hiển thị thông tin server hiện tại:
+
+```bash
+opencode service status
+```
+
+Kiểm tra rằng API của nó hoạt động bình thường:
+
+```bash
+opencode api get /api/info
+```
+
+Nếu service bị treo hoặc không ổn, hãy khởi động lại nó:
+
+```bash
+opencode service restart
+```
+
+Bạn cũng có thể dừng và khởi động nó một cách tường minh:
+
+```bash
+opencode service stop
+opencode service start
+```
+
+<Callout type="note">
+  OpenCode thông thường tự phát hiện hoặc khởi động service nền dùng chung. Các lệnh service chỉ cần thiết khi chẩn đoán vòng đời
+  của nó.
+</Callout>
+
+## Cho phép một origin của trình duyệt
+
+Nếu một client trình duyệt trên origin khác không kết nối được vì CORS, hãy thêm origin của client đó vào cấu hình service:
+
+```bash
+opencode service set cors http://192.168.1.10:3001
+opencode service get cors
+```
+
+Dùng một origin HTTP hoặc HTTPS chính xác, gồm cả cổng khi cần, không có đường dẫn hoặc dấu gạch chéo cuối. Để cho phép nhiều
+origin, hãy truyền một danh sách phân tách bằng dấu phẩy làm một đối số; khoảng trắng quanh mỗi origin sẽ được cắt bỏ:
+
+```bash
+opencode service set cors "http://192.168.1.10:3001, https://app.example.com"
+```
+
+`service get cors` in ra một mảng JSON. Xóa danh sách đã cấu hình bằng:
+
+```bash
+opencode service unset cors
+```
+
+Đặt hoặc bỏ cấu hình service sẽ dừng service nền. Lần khởi động tiếp theo của nó sẽ nhận cấu hình mới; hãy dùng
+`opencode service start` để khởi động nó một cách tường minh.
+
+Với một server chạy ở tiền cảnh, hãy lặp lại `--cors` cho mỗi origin được phép bổ sung:
+
+```bash
+opencode serve --cors http://192.168.1.10:3001 --cors https://app.example.com
+```
+
+Với `serve --service`, các cờ `--cors` được truyền sẽ ghi đè danh sách đã lưu cho tiến trình đó. Không có các cờ đó, chế độ
+service dùng danh sách đã lưu. CORS không thay đổi địa chỉ lắng nghe và không vượt qua xác thực của server.
+
+## Kiểm tra API
+
+Lệnh `api` dùng quy trình phát hiện service cục bộ và xác thực. Nó nhận một phương thức HTTP cùng đường dẫn, hoặc một OpenAPI
+operation ID.
+
+Xem [tài liệu tham chiếu API](/api) để biết tất cả endpoint và operation ID.
+
+Truyền body yêu cầu JSON bằng `--data` hoặc `-d`, và thêm header bằng `--header` hoặc `-H`.
+
+<Callout type="warning">
+  Chạy `opencode api` có thể khởi động service nền khi không có service tương thích nào đang hoạt động bình thường.
+</Callout>
+
+## Đọc nhật ký
+
+Bản cài đặt ghi nhật ký vào:
+
+```text
+~/.local/share/opencode/log/opencode.log
+```
+
+Theo dõi nhật ký trong khi tái hiện sự cố:
+
+```bash
+tail -f ~/.local/share/opencode/log/opencode.log
+```
+
+Mỗi dòng chứa một ID `run` của tiến trình và một trường `role`. Dùng `role=server` cho hoạt động của phiên, nhà cung cấp,
+tiện ích mở rộng, quyền và công cụ.
+
+```bash
+grep 'role=server' ~/.local/share/opencode/log/opencode.log
+grep 'run=8fc3b1d5' ~/.local/share/opencode/log/opencode.log
+```
+
+## Ghi lại hồ sơ CPU và bộ nhớ
+
+Trên macOS và Linux, bạn có thể gửi tín hiệu cho một tiến trình OpenCode đang chạy để ghi lại dữ liệu chẩn đoán. Lấy PID của
+server nền từ endpoint kiểm tra sức khoẻ:
+
+```bash
+opencode api get /api/info
+```
+
+Dùng `pid` từ phản hồi với một trong các tín hiệu sau:
+
+- `SIGPROF` ghi lại một hồ sơ CPU trong mười giây:
+
+  ```bash
+  kill -SIGPROF <pid>
+  ```
+
+  Kết quả được ghi vào thư mục nhật ký với tên `cpu-<pid>-<timestamp>.cpuprofile`.
+
+- `SIGUSR1` ghi lại một ảnh chụp bộ nhớ (heap):
+
+  ```bash
+  kill -SIGUSR1 <pid>
+  ```
+
+  Kết quả được ghi vào thư mục nhật ký với tên `heap-<pid>-<timestamp>.heapsnapshot`.
+
+Hãy chờ `CPU profile written` hoặc `heap snapshot written` xuất hiện trong `opencode.log` trước khi mở tệp. Mục nhật ký tương ứng
+chứa đường dẫn đầy đủ của nó. Bạn có thể kiểm tra cả hai loại tệp này trong Chrome DevTools.
+
+<Callout type="note">
+  Hồ sơ kích hoạt bằng tín hiệu không khả dụng trên Windows. Việc ghi ảnh chụp heap có thể tạm dừng tiến trình và làm tăng tạm thời
+  mức dùng bộ nhớ của nó.
+</Callout>
+
+## Tệp của service
+
+Server dùng chung tự đăng ký tại:
+
+```text
+~/.local/state/opencode/service.json
+```
+
+Cấu hình riêng của service được lưu riêng biệt tại:
+
+```text
+~/.config/opencode/service.json
+```
+
+Cơ sở dữ liệu thường nằm tại:
+
+```text
+~/.local/share/opencode/opencode.db
+```
+
+`OPENCODE_DB` có thể ghi đè vị trí của cơ sở dữ liệu.
+
+<Callout type="warning">
+  Đừng xóa hoặc chỉnh sửa các tệp của service hay cơ sở dữ liệu trong khi khắc phục sự cố. Hãy dùng các lệnh service để quản lý
+  daemon, và hãy sao lưu trước khi kiểm tra dữ liệu lâu dài bằng công cụ bên ngoài.
+</Callout>
+
+## Báo cáo một sự cố
+
+Hãy kèm những nội dung sau khi báo cáo một sự cố có thể tái hiện:
+
+- Kết quả của `opencode --version`
+- Kết quả của `opencode service status`
+- Chuỗi bước ngắn nhất tái hiện được sự cố
+- Sự cố ảnh hưởng tới service dùng chung, một client cụ thể hay một dự án
+- Các dòng nhật ký liên quan, bao gồm các trường `run` và `role` của chúng
+
+Hãy loại bỏ khóa API, header ủy quyền, lời nhắc, nội dung tệp và các dữ liệu nhạy cảm khác trước khi chia sẻ nhật ký.
+
+Ghi nhận các sự cố có thể tái hiện trong [GitHub Issues](https://github.com/anomalyco/opencode/issues).
