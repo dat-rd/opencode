@@ -1,0 +1,99 @@
+---
+title: "Budgets API"
+description: "Đọc ngân sách hàng tháng đang có hiệu lực của mọi thành viên không gian làm việc và quản lý ngân sách riêng của từng thành viên."
+---
+
+Đọc ngân sách hàng tháng đang có hiệu lực của mọi thành viên không gian làm việc và quản lý ngân sách riêng của từng thành viên từ một tích hợp.
+
+## Bắt đầu nhanh
+
+Tạo một khóa API cho [tài khoản dịch vụ](/console/api#service-accounts) với quyền **Tất cả** trong [Console](https://opencode.ai/console).
+Khóa chỉ suy luận không thể truy cập dữ liệu ngân sách hay thay đổi giới hạn.
+
+```bash
+export CONSOLE_URL="https://opencode.ai/console"
+export SERVICE_API_KEY="oc_sk_..."
+```
+
+Liệt kê ngân sách của các thành viên:
+
+```bash
+curl --fail-with-body \
+  "${CONSOLE_URL}/api/v1/budgets/members" \
+  --header "Authorization: Bearer ${SERVICE_API_KEY}" \
+  --header "Accept: application/json"
+```
+
+## Liệt kê ngân sách thành viên
+
+```text
+GET /api/v1/budgets/members
+```
+
+Phản hồi bao gồm mọi thành viên hiện tại, được sắp xếp theo email. Một giới hạn có nguồn `custom` là ghi đè ở cấp thành viên;
+nguồn `default` được thừa kế từ giá trị mặc định của không gian làm việc. Giới hạn và nguồn đều là null nghĩa là thành viên không bị
+giới hạn.
+
+```json
+[
+  {
+    "user_id": "user_...",
+    "email": "alice@example.com",
+    "limit_micro_cents": "7525000000",
+    "spent_micro_cents": "1250000000",
+    "exceeded": false,
+    "resets_at": "2026-10-01T00:00:00.000Z",
+    "source": "custom",
+    "updated_at": "2026-09-03T12:00:00.000Z"
+  }
+]
+```
+
+Các trường tiền tệ trong phản hồi là chuỗi thập phân tính bằng microcent để tích hợp không bị mất độ chính xác. Mỗi đô la Mỹ
+tương đương 100,000,000 microcent. Dấu thời gian chi tiêu và đặt lại phủ theo tháng lịch UTC hiện tại. `updated_at` là null khi
+không có ghi đè riêng cho thành viên.
+
+## Đặt ngân sách riêng
+
+```text
+PUT /api/v1/budgets/members/:user_id
+```
+
+Đặt ngân sách hàng tháng $75.25 cho một thành viên:
+
+```bash
+curl --fail-with-body --request PUT \
+  "${CONSOLE_URL}/api/v1/budgets/members/user_..." \
+  --header "Authorization: Bearer ${SERVICE_API_KEY}" \
+  --header "Content-Type: application/json" \
+  --data '{"budget_dollars":75.25}'
+```
+
+`budget_dollars` chấp nhận một số tiền đô la Mỹ không âm với tối đa hai chữ số thập phân. Lệnh PUT là idempotent và trả về
+HTTP 204. Hãy dùng ID thành viên do thao tác liệt kê trả về.
+
+## Quay lại giá trị mặc định của không gian làm việc
+
+```text
+DELETE /api/v1/budgets/members/:user_id
+```
+
+Xóa ghi đè riêng:
+
+```bash
+curl --fail-with-body --request DELETE \
+  "${CONSOLE_URL}/api/v1/budgets/members/user_..." \
+  --header "Authorization: Bearer ${SERVICE_API_KEY}"
+```
+
+Xóa một ghi đè không xóa thành viên. Sau đó thành viên thừa kế ngân sách mặc định của không gian làm việc, hoặc trở nên không
+giới hạn khi không gian làm việc không có giá trị mặc định. Lặp lại yêu cầu là an toàn và trả về HTTP 204.
+
+## Lỗi
+
+| Trạng thái | Ý nghĩa                                                     |
+| ---------- | ----------------------------------------------------------- |
+| `400`      | ID thành viên hoặc số tiền ngân sách không hợp lệ.         |
+| `401`      | Thiếu, không hợp lệ, hết hạn hoặc đã thu hồi khóa API dịch vụ. |
+| `403`      | Khóa API không có quyền quản lý ngân sách.                |
+| `404`      | Thành viên không nằm trong không gian làm việc gắn với khóa API. |

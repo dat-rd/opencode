@@ -1,0 +1,78 @@
+---
+title: "Ngân sách"
+description: "Giới hạn chi tiêu hàng tháng cho một không gian làm việc, thành viên và tài khoản dịch vụ của nó."
+---
+
+Ngân sách giới hạn số tiền mà một không gian làm việc chi tiêu mỗi tháng. Chủ sở hữu và quản trị viên thiết lập chúng trong bảng **Giới hạn ngân sách** trên các trang **Thành viên** và **Khóa**.
+
+## Các mức ngân sách
+
+| Ngân sách                            | Áp dụng cho                                          | Nơi thiết lập                                              |
+| ------------------------------------ | ----------------------------------------------------- | ---------------------------------------------------------- |
+| Không gian làm việc                  | Tổng chi tiêu của mọi người trong không gian làm việc | **Thành viên** hoặc **Khóa › Ngân sách hàng tháng của không gian làm việc** |
+| Người dùng mặc định                  | Từng thành viên chưa có giới hạn riêng                 | **Thành viên › Ngân sách mặc định hàng tháng cho người dùng** |
+| Người dùng riêng                     | Một thành viên                                        | Bảng **Thành viên** hoặc trang thành viên                    |
+| Tài khoản dịch vụ mặc định            | Từng tài khoản dịch vụ chưa có giới hạn riêng          | **Khóa › Ngân sách mặc định hàng tháng cho tài khoản dịch vụ** |
+| Tài khoản dịch vụ riêng               | Một tài khoản dịch vụ                                 | Trang tài khoản dịch vụ                                      |
+
+Một yêu cầu phải nằm dưới cả ngân sách của không gian làm việc lẫn ngân sách riêng của người đó. Khi không có bất kỳ ngân sách nào, mức chi tiêu là không giới hạn.
+
+## Ngân sách không gian làm việc
+
+Ngân sách không gian làm việc chặn yêu cầu của tất cả mọi người khi không gian làm việc đạt tới hạn mức đó.
+
+1. Mở **Thành viên** hoặc **Khóa**.
+2. Trong **Giới hạn ngân sách**, nhấp **Ngân sách hàng tháng của không gian làm việc**.
+3. Nhập **Giới hạn không gian làm việc** bằng USD rồi nhấp **Lưu**.
+
+## Ngân sách thành viên
+
+Ngân sách mặc định cho người dùng áp dụng cho mọi thành viên chưa có giới hạn riêng. Thiết lập tại **Ngân sách mặc định hàng tháng cho người dùng**.
+
+Đặt giới hạn riêng cho một thành viên từ một trong hai nơi:
+
+- Nhấp vào ô **Giới hạn** trong hàng của họ ở bảng **Thành viên** rồi nhập số tiền.
+- Mở trang thành viên và nhấp **Đặt ngân sách người dùng** dưới mục **Ngân sách hàng tháng**.
+
+Giới hạn riêng được làm nổi bật trong bảng Thành viên. Xóa giới hạn riêng để đưa thành viên về mặc định; trang thành viên khi đó hiển thị **Đang dùng mặc định**.
+
+## Ngân sách tài khoản dịch vụ
+
+Tài khoản dịch vụ hoạt động theo cách tương tự. Thiết lập **Ngân sách mặc định hàng tháng cho tài khoản dịch vụ** trên trang **Khóa**, hoặc mở một tài khoản dịch vụ và nhấp **Đặt ngân sách tài khoản dịch vụ**.
+
+## Số tiền và chu kỳ đặt lại
+
+- Số tiền tính bằng đô la Mỹ với tối đa hai chữ số thập phân.
+- Ngân sách được đặt lại vào ngày 1 hàng tháng lúc 00:00 UTC.
+- Ngân sách `$0` sẽ chặn mọi khoản chi có tính vào ngân sách.
+
+## Những gì được tính
+
+| Chi tiêu                                                              | Có tính vào ngân sách   |
+| ---------------------------------------------------------------------- | ----------------------- |
+| Mô hình Console trả phí                                                | Có                      |
+| Mô hình trên [nhà cung cấp của riêng bạn](/console/providers) đã đặt giá | Có, theo giá đã cấu hình |
+| [Tìm kiếm web](/console/websearch)                                     | Có                      |
+| Mô hình miễn phí                                                        | Không                   |
+| Mức sử dụng [Go](/console/go) trong phạm vi gói                        | Không                   |
+| Mức sử dụng thêm của Go trả bằng tín dụng                               | Có                      |
+
+## Khi đạt tới hạn ngân sách
+
+Các yêu cầu mới sẽ thất bại với HTTP `429` cho đến khi ngân sách được đặt lại hoặc quản trị viên nâng hạn mức. Phản hồi không cho biết ngân sách nào đã đạt tới hạn.
+
+```text
+Upstream request failed: Account budget exceeded
+```
+
+Ngân sách được kiểm tra khi một yêu cầu bắt đầu. Các yêu cầu đang chạy sẽ hoàn tất, nên mức chi tiêu có thể cao hơn hạn mức một chút.
+
+## Theo dõi chi tiêu
+
+Mỗi thành viên thấy ngân sách riêng trên trang **Tổng quan**: số tiền còn lại, số tiền đã chi và ngày đặt lại.
+
+Chủ sở hữu và quản trị viên của các không gian làm việc có nhiều hơn một thành viên còn thấy mục **Mức sử dụng**. Mục này phân tích chi phí theo ngày, mô hình và cá nhân, còn nút **Xuất mức sử dụng** tải tổng số theo ngày của 7, 30 hoặc 90 ngày gần nhất dưới dạng CSV.
+
+## Tự động hóa ngân sách
+
+Dùng [Budgets API](/console/api/budgets) để đọc ngân sách của từng thành viên và đặt giới hạn riêng từ các công cụ của riêng bạn.

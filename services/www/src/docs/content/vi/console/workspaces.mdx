@@ -1,0 +1,81 @@
+---
+title: "Cơ bản"
+description: "Tạo, chuyển, đổi tên và xóa không gian làm việc OpenCode Console, đồng thời hiểu rõ vai trò thành viên."
+---
+
+Một không gian làm việc chứa mọi thứ trong [Console](https://opencode.ai/console): thành viên, tín dụng, ngân sách, nhà cung cấp, chính sách và tài khoản dịch vụ. Mức sử dụng và thanh toán được theo dõi theo từng không gian làm việc.
+
+Một không gian làm việc có thể chỉ có một thành viên. Bạn có thể tự dùng tín dụng, [nhà cung cấp của riêng bạn](/console/providers), ngân sách và [Go](/console/go), và chỉ [mời thành viên](/console/members) khi thật cần.
+
+## Không gian làm việc đầu tiên
+
+Console tạo một không gian làm việc tên **Cá nhân** khi bạn đăng ký, với bạn là chủ sở hữu và thành viên duy nhất. Nếu bạn đăng ký từ một lời mời, bạn sẽ tham gia không gian làm việc đã mời bạn và không có không gian làm việc Cá nhân nào được tạo.
+
+## Tạo không gian làm việc
+
+1. Mở menu không gian làm việc trên thanh trên cùng.
+2. Nhấp **Tạo không gian làm việc**.
+3. Nhập **Tên không gian làm việc** và nhấp **Tạo**.
+
+Bạn trở thành chủ sở hữu của không gian làm việc mới.
+
+## Chuyển không gian làm việc
+
+Chọn một không gian làm việc khác từ menu không gian làm việc. Console giữ bạn ở cùng trang, nên chuyển từ `/acme/members` sẽ mở trang Thành viên của không gian làm việc kia.
+
+Các lời mời đang chờ xuất hiện ở đầu cùng menu đó. Xem [Thành viên](/console/members#accept-an-invitation).
+
+## Kết nối OpenCode
+
+Chạy `/connect` trong OpenCode rồi chọn không gian làm việc trong trình duyệt. Sau đó OpenCode sẽ dùng các mô hình, chính sách và ngân sách của không gian làm việc đó.
+
+```text
+/connect
+```
+
+Chạy lại `/connect` để chuyển OpenCode sang không gian làm việc khác. [Chính sách](/policies#console) của không gian làm việc được thay bằng chính sách của không gian làm việc mới, và bị xóa khi bạn ngắt kết nối.
+
+## Vai trò
+
+Mỗi thành viên có một vai trò. Thành viên mới luôn tham gia với vai trò **Thành viên**.
+
+| Vai trò       | Có thể làm                                                                                                              |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Thành viên    | Dùng OpenCode, xem mức sử dụng, nhật ký và ngân sách của chính họ.                                                     |
+| Quản trị viên | Mọi thứ mà thành viên có thể, cộng thêm quản lý thành viên, thanh toán, ngân sách, nhà cung cấp, chính sách, tài khoản dịch vụ và cài đặt. |
+| Chủ sở hữu    | Mọi thứ mà quản trị viên có thể, cộng thêm cấp vai trò Chủ sở hữu và xóa không gian làm việc.                              |
+
+Thành viên chỉ thấy **Tổng quan**, **Nhật ký**, **Bảng xếp hạng** khi bảng đó hiển thị với thành viên, và **Cài đặt › Tài khoản**.
+
+### Quy tắc vai trò
+
+- Một không gian làm việc có thể có nhiều chủ sở hữu, và luôn giữ ít nhất một người.
+- Bạn không thể gán vai trò cao hơn vai trò của mình, nên chỉ chủ sở hữu mới có thể biến ai đó thành chủ sở hữu.
+- Bạn không thể đổi vai trò của chính mình.
+
+### Chuyển quyền sở hữu
+
+1. Với vai trò chủ sở hữu, mở **Thành viên** và đặt vai trò của chủ sở hữu mới thành **Chủ sở hữu**.
+2. Đề nghị chủ sở hữu mới đổi vai trò của bạn thành **Quản trị viên** hoặc **Thành viên**.
+
+## Xóa không gian làm việc
+
+Chỉ chủ sở hữu mới có thể xóa không gian làm việc, và chỉ khi họ còn thuộc ít nhất một không gian làm việc khác.
+
+1. Mở **Cài đặt › Chung** và nhấp **Xóa không gian làm việc**.
+2. Tích chọn mọi xác nhận.
+3. Nhấp **Xóa không gian làm việc** để xác nhận.
+
+Việc xóa có hiệu lực ngay và không thể hoàn tác:
+
+- Thành viên mất quyền truy cập ngay lập tức.
+- Mọi khóa API của tài khoản dịch vụ và mọi lời mời đang chờ đều bị thu hồi.
+- Tự động nạp tiền dừng lại.
+- Gói đăng ký Go đang hoạt động kết thúc.
+- Mọi số dư tín dụng còn lại bị mất.
+
+<Callout type="warning">Việc xóa bị chặn khi một khoản thanh toán đang được xử lý. Hãy thử lại sau vài phút.</Callout>
+
+## Rời khỏi không gian làm việc
+
+Thành viên không thể tự xóa mình. Hãy nhờ một chủ sở hữu hoặc quản trị viên [xóa bạn](/console/members#remove-a-member).

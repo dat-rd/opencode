@@ -1,0 +1,111 @@
+---
+title: "Nhà cung cấp API"
+description: "Gọi các nhà cung cấp đã kết nối với không gian làm việc của bạn qua cổng Console bằng một khóa Console."
+---
+
+Mọi [nhà cung cấp](/console/providers) đã kết nối với không gian làm việc của bạn đều được phục vụ qua cổng Console tại URL riêng
+của nó. OpenCode dùng cổng đó tự động sau `/connect`; hãy gọi trực tiếp để dùng cùng các nhà cung cấp đó từ công cụ của
+riêng bạn. Console thêm thông tin xác thực của nhà cung cấp trước khi chuyển tiếp, nên bí mật của nhà cung cấp không bao giờ
+rời khỏi không gian làm việc.
+
+```bash
+curl -X POST "https://opencode.ai/inference/custom/conn_.../chat/completions" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "deepseek-chat",
+    "messages": [{ "role": "user", "content": "Say hi" }]
+  }'
+```
+
+## URL của nhà cung cấp
+
+Chép **Console API URL** từ trang của nhà cung cấp trong mục **Nhà cung cấp**.
+
+```text
+https://opencode.ai/inference/custom/<connection_id>
+```
+
+## Xác thực
+
+Thay `<token>` bằng một [khóa tài khoản dịch vụ](/console/api#service-accounts) được tạo trong Console. Console sẽ thay nó bằng thông
+tin xác thực của kết nối trước khi chuyển tiếp.
+
+```text
+Authorization: Bearer <token>
+```
+
+Console cũng đọc khóa từ `x-api-key`, `api-key` hoặc `x-goog-api-key`, nên SDK của nhà cung cấp hoạt động khi trỏ tới Console API
+URL.
+
+## Endpoint
+
+Nối đường dẫn API của nhà cung cấp vào Console API URL. Console chuyển tiếp yêu cầu tới base URL của kết nối và trả về phản
+hồi của nhà cung cấp mà không thay đổi.
+
+| Định dạng               | Đường dẫn                            |
+| ----------------------- | ------------------------------------- |
+| Chat Completions        | `/chat/completions`                   |
+| Responses API           | `/responses`                          |
+| Anthropic Compatible    | `/messages`                           |
+| Google Generative AI    | `/models/<model>:generateContent`     |
+
+Gửi mô hình ID đúng như nó hiển thị trên trang của nhà cung cấp. Khi một mô hình có API ID khác ở phía nhà cung cấp, Console sẽ viết
+lại nó. Các yêu cầu tới những mô hình không được bật trên kết nối sẽ bị từ chối.
+
+### Chat Completions
+
+```bash
+curl -X POST "https://opencode.ai/inference/custom/conn_.../chat/completions" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "deepseek-chat",
+    "messages": [{ "role": "user", "content": "Say hi" }]
+  }'
+```
+
+### Responses API
+
+```bash
+curl -X POST "https://opencode.ai/inference/custom/conn_.../responses" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-5.4",
+    "input": "Say hi"
+  }'
+```
+
+### Anthropic Compatible
+
+`max_tokens` là bắt buộc.
+
+```bash
+curl -X POST "https://opencode.ai/inference/custom/conn_.../messages" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "claude-sonnet-4-6",
+    "max_tokens": 1024,
+    "messages": [{ "role": "user", "content": "Say hi" }]
+  }'
+```
+
+### Google Generative AI
+
+Mô hình và phương thức là một phần của đường dẫn. Thay `:generateContent` bằng `:streamGenerateContent` để nhận phản hồi theo
+luồng.
+
+```bash
+curl -X POST "https://opencode.ai/inference/custom/conn_.../models/gemini-3.1-pro:generateContent" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "contents": [{ "parts": [{ "text": "Say hi" }] }]
+  }'
+```
+
+## Cách dùng
+
+Các yêu cầu được tính vào [ngân sách](/console/budgets) theo giá được đặt trên từng mô hình. Nhà cung cấp tính phí token cho bạn.
