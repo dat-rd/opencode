@@ -1,0 +1,89 @@
+---
+title: "Cloudflare"
+---
+
+Dùng `@opencode/sdk/workerd` bên trong một Cloudflare Durable Object. Profile này dùng kho lưu trữ SQLite của object, lưu
+giữ các sự kiện bền vững để khôi phục sau khi bị loại bỏ, và thay thế các dịch vụ hệ thống tệp và tiến trình cục bộ khi
+không khả dụng.
+
+```sh
+bun add @opencode/sdk
+```
+
+Giữ một host xuyên suốt vòng đời của instance Durable Object thay vì tạo một host cho mỗi request.
+
+```ts
+import { OpenCodeWorkerd } from "@opencode/sdk/workerd"
+import myPlugin from "./my-plugin"
+
+export class OpenCodeDO {
+  private readonly opencode: Promise<OpenCodeWorkerd.Interface>
+
+  constructor(state: DurableObjectState) {
+    this.opencode = state.blockConcurrencyWhile(() =>
+      OpenCodeWorkerd.create({
+        storage: state.storage,
+        config: { default_agent: "build" },
+        plugins: [myPlugin],
+      }),
+    )
+  }
+
+  async fetch() {
+    const opencode = await this.opencode
+    return Response.json(await opencode.server.info())
+  }
+}
+```
+
+`blockConcurrencyWhile` giữ mọi sự kiện của Durable Object ở ngoài cho tới khi host sẵn sàng và khởi tạo lại object nếu
+quá trình khởi tạo thất bại. Promise được giữ lại cho các request handler truy cập trực tiếp vào cùng host đó sau khi khởi
+động.
+
+```ts
+constructor(state: DurableObjectState) {
+  this.opencode = state.blockConcurrencyWhile(() =>
+    OpenCodeWorkerd.create({ storage: state.storage }),
+  )
+}
+```
+
+Wrangler chọn các cách hiện thực an toàn cho Workerd của OpenCode thông qua điều kiện package `workerd`. Cloudflare có
+thể loại bỏ một Durable Object mà không chạy phần dọn dẹp, nên tính đúng đắn không phụ thuộc vào việc `close()` có được
+gọi hay không.
+
+```jsonc title="wrangler.jsonc"
+{
+  "compatibility_flags": ["nodejs_compat"]
+}
+```
+
+## Tùy chỉnh
+
+Tùy chỉnh instance OpenCode của bạn bằng cách đăng ký các tiện ích mở rộng được đóng gói cùng Worker. Truyền tiện ích mở
+rộng cho `OpenCodeWorkerd.create()` để tùy chỉnh tác nhân, mô hình, công cụ và các hành vi khác:
+
+```ts
+import { Plugin } from "@opencode/plugin"
+import { OpenCodeWorkerd } from "@opencode/sdk/workerd"
+
+const plugin = Plugin.define({
+  id: "customize-agent",
+  async setup(ctx) {
+    await ctx.agent.transform((agents) => {
+      agents.update("build", (agent) => {
+        agent.description = "Builds features and fixes bugs for our team"
+      })
+    })
+  },
+})
+
+await OpenCodeWorkerd.create({
+  storage: state.storage,
+  config: { default_agent: "build" },
+  plugins: [plugin],
+})
+```
+
+Xem [tài liệu tiện ích mở rộng đầy đủ](/build/plugins) để biết về móc nối, transform, công cụ và toàn bộ context của tiện
+ích mở rộng.

@@ -1,0 +1,647 @@
+---
+title: "CLI"
+---
+
+Tiện ích mở rộng CLI mở rộng terminal bằng lệnh, route, slot, trình render Markdown, thông báo và trạng thái cục bộ.
+
+```ts title="src/tui.ts"
+import { Plugin } from "@opencode/plugin/tui"
+
+export default Plugin.define({
+  id: "acme.cli",
+  setup(context) {
+    context.ui.toast.show({ message: "CLI plugin loaded", variant: "success" })
+  },
+})
+```
+
+Hãy import trực tiếp `@opencode/plugin/tui`. OpenCode phân giải import này ở thời điểm chạy, nên các tiện ích mở rộng CLI
+cục bộ không cần đường dẫn tuyệt đối tới một bản checkout OpenCode.
+
+## Context
+
+`setup` nhận cấu hình, metadata ứng dụng, location hiện tại, client OpenCode, dữ liệu đã cache, theme token, trình render
+OpenTUI và các API UI được tài liệu hoá bên dưới.
+
+```ts
+setup(context) {
+  const compact = context.options.compact === true
+  const location = context.location ?? context.data.location.default()
+  const version = context.app.version
+  const channel = context.app.channel
+  const client = context.client
+  const renderer = context.renderer
+  const theme = context.theme
+}
+```
+
+Trả về một hàm dọn dẹp cho các tài nguyên do tiện ích mở rộng sở hữu.
+
+```ts
+setup(context) {
+  const stop = context.data.on("session.execution.succeeded", () => {})
+  return () => stop()
+}
+```
+
+## Client
+
+`context.client` là client OpenCode đã sinh ra và có thể gọi server đang kết nối, kể cả server từ xa.
+
+```ts
+const response = await context.client.plugin.list({
+  location: context.location ?? context.data.location.default(),
+})
+const plugins = response.data
+```
+
+## Sự kiện
+
+Dùng `data.on` cho một sự kiện có kiểu hoặc `data.listen` cho mọi sự kiện của server; cả hai đều trả về hàm hủy đăng ký.
+
+```ts
+const stopPermission = context.data.on("permission.asked", (event) => {
+  context.ui.toast.show({ message: `Permission ${event.data.id}` })
+})
+const stopAll = context.data.listen(({ details }) => console.log(details.type))
+
+return () => {
+  stopPermission()
+  stopAll()
+}
+```
+
+## Phiên
+
+Dữ liệu phiên cung cấp các thao tác liệt kê, tra cứu, phân cấp, chi phí, trạng thái, đồng bộ và vô hiệu hoá.
+
+```ts
+const sessions = context.data.session.list()
+const session = context.data.session.get(sessionID)
+const rootID = context.data.session.root(sessionID)
+const familyIDs = context.data.session.family(sessionID)
+const cost = context.data.session.cost(sessionID)
+const status = context.data.session.status(sessionID)
+await context.data.session.sync(sessionID)
+context.data.session.invalidate(sessionID)
+```
+
+Các mục inbox đang chờ và tin nhắn có các API liệt kê, tra cứu, đồng bộ và vô hiệu hoá.
+
+```ts
+await context.data.session.pending.sync(sessionID)
+const pending = context.data.session.pending.list(sessionID)
+context.data.session.pending.invalidate(sessionID)
+
+await context.data.session.message.sync(sessionID)
+const messages = context.data.session.message.list(sessionID)
+const message = context.data.session.message.get(sessionID, messageID)
+context.data.session.message.invalidate(sessionID)
+```
+
+Các yêu cầu quyền có thể được đọc và làm mới cho một phiên.
+
+```ts
+await context.data.session.permission.sync(sessionID)
+const requests = context.data.session.permission.list(sessionID) ?? []
+context.data.session.permission.invalidate(sessionID)
+```
+
+Các biểu mẫu có thể được liệt kê, làm mới, trả lời hoặc huỷ tại một location.
+
+```ts
+import type { FormCancelInput, FormReplyInput } from "@opencode/client"
+
+async function handleForm(reply: FormReplyInput, cancel: FormCancelInput) {
+  const location = context.location
+  await context.data.session.form.sync(sessionID, location)
+  const forms = context.data.session.form.list(sessionID, location) ?? []
+  await context.data.session.form.reply(reply, location)
+  await context.data.session.form.cancel(cancel, location)
+  context.data.session.form.invalidate(sessionID, location)
+}
+```
+
+## Dự án và shell
+
+Dự án và các quyền đã lưu hỗ trợ các thao tác liệt kê, tra cứu, đồng bộ và vô hiệu hoá.
+
+```ts
+await context.data.project.sync()
+const projects = context.data.project.list()
+const project = context.data.project.get(projectID)
+context.data.project.invalidate()
+
+await context.data.project.permission.sync(projectID)
+const saved = context.data.project.permission.list(projectID) ?? []
+context.data.project.permission.invalidate(projectID)
+```
+
+Dữ liệu shell hỗ trợ các thao tác liệt kê, tra cứu, đồng bộ và vô hiệu hoá theo phạm vi location.
+
+```ts
+await context.data.shell.sync(context.location)
+const shells = context.data.shell.list(context.location)
+const shell = context.data.shell.get(shellID)
+context.data.shell.invalidate(context.location)
+```
+
+## Dữ liệu location
+
+Trạng thái location cung cấp location mặc định và các điều khiển làm mới.
+
+```ts
+const location = context.data.location.default()
+await context.data.location.sync(location)
+context.data.location.invalidate(location)
+```
+
+Trạng thái kiểm soát phiên bản cung cấp thông tin kho lưu trữ tại một location.
+
+```ts
+await context.data.location.vcs.sync(context.location)
+const vcs = context.data.location.vcs.info(context.location)
+const branch = vcs?.branch.current
+context.data.location.vcs.invalidate(context.location)
+```
+
+Dữ liệu tác nhân, lệnh, tích hợp, mô hình, nhà cung cấp, tham chiếu, kỹ năng và MCP dùng chung các phương thức `list`, `sync`
+và `invalidate`.
+
+```ts
+const location = context.location
+await Promise.all([
+  context.data.location.agent.sync(location),
+  context.data.location.command.sync(location),
+  context.data.location.integration.sync(location),
+  context.data.location.model.sync(location),
+  context.data.location.provider.sync(location),
+  context.data.location.reference.sync(location),
+  context.data.location.skill.sync(location),
+  context.data.location.mcp.server.sync(location),
+  context.data.location.mcp.resource.sync(location),
+])
+
+const agents = context.data.location.agent.list(location) ?? []
+const commands = context.data.location.command.list(location) ?? []
+const integrations = context.data.location.integration.list(location) ?? []
+const models = context.data.location.model.list(location) ?? []
+const providers = context.data.location.provider.list(location) ?? []
+const references = context.data.location.reference.list(location) ?? []
+const skills = context.data.location.skill.list(location) ?? []
+const servers = context.data.location.mcp.server.list(location) ?? []
+const resources = context.data.location.mcp.resource.list(location) ?? []
+
+context.data.location.model.invalidate(location)
+```
+
+## Chú ý
+
+Yêu cầu chú ý có thể hiện thông báo hệ thống, phát âm thanh đã cấu hình, hoặc làm cả hai tuỳ theo việc terminal có được lấy
+tiêu điểm hay không.
+
+```ts
+const result = await context.attention.notify({
+  title: "OpenCode",
+  message: "Session done",
+  notification: { when: "blurred" },
+  sound: { name: "done", volume: 0.5, when: "always" },
+})
+console.log(result.ok, result.notification, result.sound, result.skipped)
+```
+
+## Theme và trình render
+
+Dùng theme token theo ngữ nghĩa với các phần tử OpenTUI và truyền `context.renderer` cho các helper riêng của trình
+render.
+
+```tsx
+const Status = () => <text fg={context.theme.text.base}>Ready</text>
+const renderer = context.renderer
+```
+
+## Component Solid
+
+Dùng `usePlugin` để truy cập context hiện tại bên trong JSX do một route, hộp thoại hoặc slot render.
+
+```tsx
+import { usePlugin } from "@opencode/plugin/tui"
+
+function Status() {
+  const context = usePlugin()
+  return <text fg={context.theme.text.base}>{context.app.version}</text>
+}
+```
+
+## Markdown
+
+Đăng ký một trình render khối code ngăn theo từng ngôn ngữ; hàm được trả về sẽ huỷ đăng ký nó.
+
+```ts
+const unregister = context.markdown.registerCodeBlockRenderer("acme", (_token, render) => render.defaultRender())
+return unregister
+```
+
+## Lệnh và keymap
+
+Đăng ký các lệnh palette, lệnh dạng slash và lệnh bàn phím trong một lớp keymap phản ứng.
+
+```ts
+context.keymap.layer(() => ({
+  mode: "global",
+  priority: 10,
+  commands: [
+    {
+      id: "acme.status",
+      title: "Show Acme status",
+      group: "Acme",
+      bind: "ctrl+g",
+      palette: true,
+      slash: { name: "acme", aliases: ["status"], arguments: true },
+      enabled: () => true,
+      suggested: true,
+      run: async (input) => context.ui.toast.show({ message: input ?? "Ready" }),
+    },
+  ],
+  bindings: ["acme.status"],
+}))
+```
+
+Hãy gọi `layer` từ `setup`, kể cả sau một `await`, hoặc từ một component. Mỗi lớp bị gỡ bỏ khi xảy ra trường hợp đầu tiên
+trong số các điều sau:
+
+- Tiện ích mở rộng bị vô hiệu hoá, được tải lại, hoặc setup thất bại.
+- Component hoặc phép tính phản ứng đã tạo ra nó, chẳng hạn một slot, route hoặc hộp thoại, bị huỷ bỏ.
+
+Hàm tạo lớp phải thuần khiết. OpenCode đánh giá nó một lần mà không theo dõi phụ thuộc để kiểm tra hình dạng lệnh ban đầu,
+rồi đánh giá lại theo phản ứng. Lỗi hình dạng lệnh ở thời điểm ban đầu, chẳng hạn một lệnh palette không có ID, sẽ ném ra từ
+`layer()`. OpenTUI xử lý lỗi phân tích phím tắt. Lỗi từ các cập nhật phản ứng về sau tuân theo cách xử lý lỗi của Solid.
+
+```ts
+async setup(context) {
+  const settings = await loadSettings()
+  context.keymap.layer(() => ({
+    mode: "global",
+    commands: [{ id: "acme.sync", title: "Sync Acme", palette: true, run: () => sync(settings) }],
+  }))
+}
+```
+
+Một lớp có thể nhắm tới một phần tử hiển thị của OpenTUI và có thể trả về `false` từ một lệnh để tiếp tục phân phối bàn
+phím.
+
+```ts
+context.keymap.layer(() => ({
+  target: () => panel,
+  commands: [{ bind: "escape", run: (_input, event) => (event ? false : undefined) }],
+}))
+```
+
+Phân phối lệnh, kiểm tra phím tắt và trạng thái lệnh, hoặc đẩy một chế độ nhập tạm thời.
+
+```ts
+context.keymap.dispatch("acme.status", "verbose")
+const shortcuts = context.keymap.shortcuts("acme.status")
+const commands = context.keymap.commands()
+const pending = context.keymap.pending()
+const active = context.keymap.active()
+const currentMode = context.keymap.mode.current()
+const popMode = context.keymap.mode.push("acme-search")
+popMode()
+```
+
+## Lưu trữ
+
+Lưu trữ bền vững giữ dữ liệu JSON qua các lần khởi động lại và đồng bộ giữa các instance TUI.
+
+```ts
+const [settings, updateSettings] = context.storage.store("settings", {
+  initial: { compact: false },
+})
+await updateSettings((draft) => {
+  draft.compact = true
+})
+```
+
+Lưu trữ bộ nhớ tồn tại qua các lần tải lại tiện ích mở rộng nhưng bị loại bỏ khi TUI thoát.
+
+```ts
+const [state, updateState] = context.storage.memory("state", {
+  initial: { count: 0 },
+})
+updateState((draft) => {
+  draft.count++
+})
+```
+
+## Hộp thoại và toast
+
+Dùng hộp thoại dựa trên promise cho cảnh báo, xác nhận, nhập văn bản và chọn.
+
+```ts
+await context.ui.dialog.alert({ title: "Acme", message: "Ready" })
+const confirmed = await context.ui.dialog.confirm({
+  title: "Continue?",
+  message: "Run the Acme action?",
+  label: { confirm: "Run", cancel: "Cancel" },
+})
+const name = await context.ui.dialog.prompt({ title: "Name", placeholder: "release" })
+const mode = await context.ui.dialog.select({
+  title: "Mode",
+  current: "safe",
+  options: [
+    { title: "Safe", value: "safe", description: "Ask before changes" },
+    { title: "Fast", value: "fast", disabled: false, category: "Advanced" },
+  ],
+})
+```
+
+### Tìm kiếm trong hộp chọn
+
+Truyền `search` để tự quản lý việc khớp và thứ tự kết quả. Nó chạy cho mọi truy vấn, kể cả truy vấn rỗng, và chỉ nhận
+các tuỳ chọn đang bật. Kết quả được liệt kê theo thứ tự trả về, với mỗi nhóm hiển thị ngay tại chỗ.
+
+```ts
+const project = await context.ui.dialog.select({
+  title: "Projects",
+  options: [
+    { title: "Alpha", value: "alpha", category: "Recent" },
+    { title: "Beta", value: "beta", category: "Pinned" },
+  ],
+  search: (query, options) =>
+    options
+      .filter((option) => option.title.toLowerCase().includes(query.toLowerCase()))
+      .toSorted((left, right) => right.title.localeCompare(left.title)),
+})
+```
+
+### Hành động trong hộp chọn
+
+Các hành động xuất hiện ở chân màn hình và chạy từ phím tắt, một lần nhấp chuột, hoặc Tab lấy tiêu điểm rồi Enter. Mặc định
+chúng nhận giá trị đã chọn và không khả dụng khi chưa có lựa chọn. Dùng `selection: "none"` cho các hành động không cần lựa
+chọn.
+
+```ts
+await context.ui.dialog.select({
+  title: "Projects",
+  options: [{ title: "Alpha", value: "alpha" }],
+  actions: [
+    { bind: "ctrl+o", title: "Inspect", onTrigger: (value) => context.ui.toast.show({ message: value }) },
+    { bind: "ctrl+a", title: "Close", side: "right", selection: "none", onTrigger: () => context.ui.dialog.clear() },
+  ],
+})
+```
+
+- Một hành động không đóng hộp thoại và không hoàn tất promise.
+- Enter hoặc nhấp vào một tuỳ chọn sẽ resolve giá trị đã chọn.
+- Escape, `clear()`, hoặc hiện một hộp thoại khác sẽ resolve `undefined`.
+- Không gán phím tắt cho `ctrl+n` hoặc `ctrl+p`. Hộp thoại dành riêng hai phím này cho điều hướng, và các phím tắt riêng
+  của nó được ưu tiên.
+
+Các hộp thoại JSX tuỳ chỉnh có thể đặt kích thước và tự đóng.
+
+```tsx
+context.ui.dialog.set({ size: "large", centered: true })
+context.ui.dialog.show(
+  () => (
+    <box>
+      <text>Acme</text>
+    </box>
+  ),
+  () => console.log("closed"),
+)
+context.ui.dialog.clear()
+```
+
+Toast hỗ trợ tiêu đề, nội dung, biến thể và thời lượng.
+
+```ts
+context.ui.toast.show({
+  title: "Acme",
+  message: "Saved",
+  variant: "success",
+  duration: 3000,
+})
+```
+
+## Route và tab
+
+Đăng ký một route JSX, kiểm tra route hiện tại, và điều hướng tới trang chủ, một phiên hoặc trang của tiện ích mở rộng.
+
+```tsx
+const unregister = context.ui.router.register({
+  name: "dashboard",
+  render: ({ data }) => <text>{String(data?.title ?? "Acme")}</text>,
+})
+const current = context.ui.router.current()
+context.ui.router.navigate({ type: "plugin", name: "dashboard", data: { title: "Status" } })
+context.ui.router.navigate({ type: "session", sessionID })
+context.ui.router.navigate({ type: "home" })
+return unregister
+```
+
+Các tab có thể được liệt kê, mở, lấy tiêu điểm, di chuyển và đóng khi tính năng tab phiên được bật. `open` giữ nguyên
+tiêu điểm; `focus` mở tab khi cần.
+
+```ts
+if (context.ui.tabs.enabled()) {
+  context.ui.tabs.open(backgroundSessionID)
+  context.ui.tabs.focus(sessionID)
+  const tabs = context.ui.tabs.list()
+  context.ui.tabs.move(backgroundSessionID, tabs.length - 1)
+  context.ui.tabs.close(sessionID)
+  context.ui.tabs.close()
+}
+```
+
+## Mô hình
+
+Đọc mô hình được chọn cho lời nhắc và thay đổi biến thể của nó. `current()` và `variant.list()` mang tính phản ứng khi được
+đọc trong một phép tính Solid. Giá trị `variant` là `undefined` nghĩa là dùng mặc định của mô hình.
+
+```ts
+const selected = context.ui.model.current()
+const variants = context.ui.model.variant.list()
+context.ui.model.variant.set("high")
+context.ui.model.variant.set(undefined)
+```
+
+`variant.set` trả về `false` khi không có mô hình nào được chọn hoặc mô hình không có biến thể đó. Hãy gán nó cho một
+lệnh để thay thế chu kỳ biến thể tích hợp, ví dụ để bỏ qua mặc định của mô hình:
+
+```ts
+context.keymap.layer(() => ({
+  commands: [
+    {
+      id: "acme.variant.cycle",
+      title: "Cycle variants",
+      bind: "tab",
+      run() {
+        const variants = context.ui.model.variant.list()
+        if (variants.length === 0) return
+        const index = variants.indexOf(context.ui.model.current()?.variant ?? "")
+        context.ui.model.variant.set(variants[(index + 1) % variants.length])
+      },
+    },
+  ],
+}))
+```
+
+## Slot
+
+Slot chèn hoặc thay thế JSX tại `app`, `home.footer`, `home.footer.status`, `prompt.footer`, `prompt.footer.status`,
+`prompt.footer.file`, `session.composer.top`, `sidebar.content`, hoặc `sidebar.footer`.
+
+```tsx
+return context.ui.slot({
+  append: "sidebar.content",
+  render: ({ sessionID }) => <text>{context.data.session.get(sessionID)?.title}</text>,
+})
+```
+
+Dùng `prepend`, `append`, `before`, `after` hoặc `replace` để xác định vị trí.
+
+```tsx
+context.ui.slot({ prepend: "home.footer", render: () => <text>Before footer content</text> })
+context.ui.slot({ append: "home.footer", render: () => <text>After footer content</text> })
+context.ui.slot({ before: "home.footer", render: () => <text>Before footer slot</text> })
+context.ui.slot({ after: "home.footer", render: () => <text>After footer slot</text> })
+context.ui.slot({ replace: "home.footer", render: () => <text>New footer</text> })
+```
+
+Dùng `home.footer.status` để thêm nội dung vào hàng chân màn hình tích hợp mà không thay thế nó. Nội dung trạng thái xuất
+hiện sau các chỉ báo tình trạng của OpenCode và trước số phiên bản.
+
+```tsx
+context.ui.slot({ append: "home.footer.status", render: () => <text>SYNCED</text> })
+```
+
+### Panel phiên
+
+Đăng ký một đóng góp cho `session.panel`, rồi mở panel từ một lệnh. Host sở hữu kích thước, tiêu điểm và cách trình bày
+toàn màn hình; tiện ích mở rộng sở hữu nội dung của nó. Tên đã chọn được truyền cho mọi đóng góp dưới dạng `panel.name`, và
+mỗi đóng góp tự quyết định có render hay không.
+
+```tsx
+import { Show } from "solid-js"
+
+context.ui.slot({
+  append: "session.panel",
+  render: (panel) => (
+    <Show when={panel.name === "acme.review"}>
+      <ReviewPanel panel={panel} />
+    </Show>
+  ),
+})
+
+context.ui.slot({
+  append: "app",
+  render: () => {
+    context.keymap.layer(() => ({
+      mode: "global",
+      commands: [
+        {
+          id: "acme.review",
+          title: "Open review",
+          slash: { name: "review" },
+          run: () => {
+            context.ui.panel.open("acme.review")
+          },
+        },
+      ],
+    }))
+    return null
+  },
+})
+```
+
+- Mở ngoài một phiên sẽ trả về `false`.
+- Đây là một slot thông thường: cả năm vị trí và các quy tắc thứ tự thay thế hiện có đều áp dụng.
+- Dùng `append` cho các đóng góp có thể chọn độc lập để chúng cùng tồn tại. `replace` vẫn chiếm toàn bộ slot.
+- Tên là các giá trị chọn dùng chung, không phải yêu cầu đăng ký. Hãy dùng tên có tiền tố của tiện ích mở rộng như
+  `acme.review` để tránh trùng lặp. Mở một tên không có trình render tương ứng sẽ để slot trống.
+- Thay đổi cách trình bày vẫn giữ các đóng góp đã mount. Đóng panel sẽ huỷ chúng; vô hiệu hoá một tiện ích mở rộng sẽ
+  gỡ bỏ các đóng góp của nó qua quy trình dọn dẹp slot thông thường.
+- Các lớp bàn phím và chế độ nhập của panel chỉ hoạt động khi panel đang nắm quyền nhập.
+
+Slot nhận các thuộc tính phản ứng `name`, `sessionID`, `width`, `presentation` và `focused`, cùng các hành động `focus`,
+`close` và `toggleFullscreen`. Host giữ terminal hẹp ở chế độ toàn màn hình; `toggleFullscreen` không có tác dụng cho tới
+khi có đủ chỗ cho một panel bên.
+
+```tsx
+import type { PanelInput } from "@opencode/plugin/tui/context"
+import { usePlugin } from "@opencode/plugin/tui"
+
+function ReviewPanel(props: { panel: PanelInput }) {
+  const context = usePlugin()
+  context.keymap.layer(() => ({
+    commands: [
+      {
+        id: "acme.review.fullscreen",
+        bind: "f",
+        run: props.panel.toggleFullscreen,
+      },
+    ],
+  }))
+  return <text>Reviewing {props.panel.sessionID}</text>
+}
+```
+
+Bạn có thể yêu cầu trình bày toàn màn hình ngay từ đầu, kiểm tra panel đang hoạt động, hoặc đóng panel đó mà không ảnh hưởng
+tới panel của tiện ích mở rộng khác.
+
+```ts
+context.ui.panel.open("acme.review", { presentation: "fullscreen" })
+const current = context.ui.panel.current()
+context.ui.panel.close()
+```
+
+## Định dạng
+
+Định dạng đường dẫn hệ thống tệp để hiển thị, bao gồm cả viết tắt cho thư mục home.
+
+```ts
+const displayPath = context.ui.format.path(context.location?.directory ?? "/home/me/project")
+```
+
+## Xuất bản và nạp
+
+Expose tiện ích mở rộng CLI qua `./tui`; hãy thêm các peer OpenTUI khi tiện ích mở rộng render JSX.
+
+```json title="package.json"
+{
+  "name": "opencode-acme-plugin",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tui": "./src/tui.tsx"
+  },
+  "dependencies": {
+    "@opencode/plugin": "latest"
+  },
+  "peerDependencies": {
+    "@opentui/core": ">=0.5.8",
+    "@opentui/solid": ">=0.5.8",
+    "solid-js": ">=1.9.0"
+  }
+}
+```
+
+Export `./tui` cạnh [tiện ích mở rộng chính](/build/plugins) để nạp tự động.
+
+```ts title="src/index.ts"
+import { Plugin } from "@opencode/plugin"
+
+export default Plugin.define({
+  id: "acme.server",
+  setup() {},
+})
+```
+
+Cấu hình một package chỉ dành cho CLI trong [`cli.json`](/cli/plugins) để nó vẫn hoạt động với các server từ xa.
+
+```json title="cli.json"
+{
+  "plugins": ["opencode-acme-plugin"]
+}
+```

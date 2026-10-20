@@ -1,0 +1,93 @@
+---
+title: "Tổng quan"
+---
+
+`@opencode/sdk` chạy OpenCode trực tiếp bên trong ứng dụng của bạn. Khác với [client mạng](/build/client), nó lắp ráp server
+OpenCode và định tuyến các lời gọi API qua HTTP router của nó trong bộ nhớ. Nó không mở listener HTTP nào và không thêm bước
+nhảy mạng nào giữa client và server.
+
+Với Cloudflare Durable Objects, hãy xem [hướng dẫn Cloudflare](/build/sdk/cloudflare).
+
+Cài đặt SDK:
+
+```sh
+bun add @opencode/sdk
+```
+
+## Tạo host
+
+`OpenCode.create()` trả về một host được sở hữu rõ ràng. Dùng `await using` để giải phóng router, các dịch vụ Location,
+fiber và các đăng ký tiện ích mở rộng theo phạm vi của nó:
+
+```ts
+import { OpenCode } from "@opencode/sdk"
+
+await using opencode = await OpenCode.create()
+const session = await opencode.sessions.create({
+  location: { directory: "/workspace" },
+})
+
+await opencode.sessions.prompt({
+  sessionID: session.id,
+  text: "Review the current changes",
+})
+```
+
+Hãy gọi `await opencode.close()` một cách tường minh khi không có quản lý tài nguyên tường minh.
+
+Host nhúng dùng cùng giá trị Promise, lỗi đã khai báo, tuỳ chọn request và stream `AsyncIterable` như `@opencode/client`.
+Nó phơi bày toàn bộ client đã sinh ra và bổ sung các bí danh tiện lợi `sessions` và `events` cho nhóm phiên và nhóm sự kiện.
+
+## Worktree
+
+Thao tác worktree cần một `projectID`. Lệnh create và refresh tải cấu hình cùng tiện ích mở rộng từ checkout chuẩn đã
+lưu của dự án. Lệnh list chỉ đọc danh mục đã lưu; lệnh remove kích hoạt tiện ích mở rộng chuẩn và dùng chiến lược đã ghi
+lại, đồng thời thất bại nếu chiến lược đó không khả dụng.
+
+```ts
+const projectID = session.projectID
+const worktree = await opencode.worktree.create({ projectID, name: "task" })
+await opencode.worktree.refresh({ projectID })
+await opencode.worktree.remove({ projectID, directory: worktree.directory, force: false })
+```
+
+Lệnh refresh phát hiện worktree trên mọi thư mục gốc checkout đã biết bằng tất cả chiến lược khả dụng. Hãy đăng ký một
+chiến lược tuỳ chỉnh thông qua [worktree transform của tiện ích mở rộng](/build/plugins#worktrees).
+
+## Stream sự kiện
+
+```ts
+for await (const event of opencode.events.subscribe()) {
+  console.log(event.type)
+}
+```
+
+Hãy truyền một `AbortSignal` qua các tuỳ chọn request đã sinh ra, hoặc rời khỏi vòng lặp để huỷ body phản hồi của nó.
+
+## Tùy chỉnh
+
+Tùy chỉnh instance OpenCode của bạn bằng cách đăng ký tiện ích mở rộng. Truyền tiện ích mở rộng cho `OpenCode.create()`
+để tùy chỉnh tác nhân, mô hình, công cụ và các hành vi khác khi host nhúng khởi động:
+
+```ts
+import { Plugin } from "@opencode/plugin"
+import { OpenCode } from "@opencode/sdk"
+
+const plugin = Plugin.define({
+  id: "customize-agent",
+  async setup(ctx) {
+    await ctx.agent.transform((agents) => {
+      agents.update("build", (agent) => {
+        agent.description = "Builds features and fixes bugs for our team"
+      })
+    })
+  },
+})
+
+await using opencode = await OpenCode.create({ plugins: [plugin] })
+```
+
+Hãy gọi `await opencode.plugin(plugin)` để đăng ký một tiện ích mở rộng khác sau khi khởi động.
+
+Xem [tài liệu tiện ích mở rộng đầy đủ](/build/plugins) để biết về móc nối, transform, công cụ và toàn bộ context của tiện
+ích mở rộng.

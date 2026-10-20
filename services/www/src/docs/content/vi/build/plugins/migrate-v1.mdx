@@ -1,0 +1,372 @@
+---
+title: "Chuyển tiện ích mở rộng từ V1"
+---
+
+Cấu hình tiện ích mở rộng có thể được chuẩn hoá tự động, nhưng mã hiện thực của tiện ích mở rộng thì phải chuyển đổi. Hàm tiện
+ích mở rộng ở V1 trả về một object duy nhất chứa công cụ và móc nối. Tiện ích mở rộng ở V2 export mặc định một định nghĩa
+gồm `id` và `setup(ctx)`; `setup` đăng ký móc nối, transform, công cụ và các đăng ký sự kiện thông qua context.
+
+<Callout type="warning">
+  Các cách hiện thực tiện ích mở rộng của V1 không chạy trong V2. Chỉ di chuyển tệp hoặc đổi tên mục cấu hình là chưa đủ.
+</Callout>
+
+## Chuyển cấu hình tiện ích mở rộng
+
+Đổi tên `plugin` thành `plugins`. Thay cặp package và options bằng một object:
+
+```jsonc
+// V1
+{
+  "plugin": [
+    "opencode-example-plugin",
+    ["./plugin/local.ts", { "enabled": true }]
+  ]
+}
+
+// V2
+{
+  "plugins": [
+    "opencode-example-plugin",
+    {
+      "package": "./plugin/local.ts",
+      "options": { "enabled": true }
+    }
+  ]
+}
+```
+
+V2 phát hiện tiện ích mở rộng cục bộ từ cả `.opencode/plugin/` và `.opencode/plugins/`; hãy dùng `.opencode/plugins/` cho
+các tệp của V2. Hãy giữ các module hỗ trợ cạnh tiện ích mở rộng khi di chuyển nó. Tiện ích mở rộng cục bộ và tiện ích mở
+rộng từ package dùng cùng một API hiện thực.
+
+## Thay entrypoint
+
+Đổi import của package, thay hàm tiện ích mở rộng được export bằng `Plugin.define`, và chuyển phần khởi tạo vào
+`setup`.
+
+```ts title="V1"
+import type { Plugin } from "@opencode-ai/plugin"
+
+export const ExamplePlugin: Plugin = async ({ directory, project, client }) => {
+  await client.app.log({
+    body: { service: "example", level: "info", message: `Loaded for ${project.id}` },
+  })
+
+  return {
+    // V1 tools and hooks
+  }
+}
+```
+
+```ts title="V2"
+import { Plugin } from "@opencode/plugin"
+
+export default Plugin.define({
+  id: "example",
+  async setup(ctx) {
+    await ctx.storage.set("last-project", ctx.location.project.id)
+    console.log(`Loaded for ${ctx.location.directory}`)
+  },
+})
+```
+
+Mọi tiện ích mở rộng V2 đều cần một `id` ổn định. Lưu trữ của tiện ích mở rộng được giới hạn theo ID này, và ID đó cũng
+dùng để nhận diện tiện ích mở rộng trong trạng thái và chẩn đoán. Tiện ích mở rộng đã xuất bản nên phụ thuộc vào một phiên bản
+`@opencode/plugin` tương thích với bản phát hành OpenCode mà nó nhắm tới.
+
+## Chuyển context
+
+Context ở V2 vừa là client OpenCode vừa là API mở rộng của tiện ích mở rộng. Hầu hết các thao tác được nhóm theo miền
+thay vì nằm trên một thuộc tính `client` riêng biệt.
+
+| V1                                      | V2                                                                     |
+| --------------------------------------- | ---------------------------------------------------------------------- |
+| `directory`                             | `ctx.location.directory`                                               |
+| `project`                               | `ctx.location.project`                                                 |
+| `client`                                | Các phương thức theo miền như `ctx.session`, `ctx.permission`, `ctx.agent` |
+| đối số options của tiện ích mở rộng     | `ctx.options`                                                          |
+| móc nối `dispose()` được trả về          | hàm dọn dẹp do `setup` trả về                                          |
+| móc nối `event` được trả về              | `ctx.event.subscribe()`                                                |
+| thay đổi config, mô hình, công cụ được trả về | một `transform(...)` theo miền                                   |
+| helper shell `$` của Bun                 | import và quản lý process API mà tiện ích mở rộng của bạn dùng         |
+
+`ctx.location` mô tả location nơi instance tiện ích mở rộng này được nạp. Nó không phải location của mọi phiên hoặc mọi sự
+kiện mà tiện ích mở rộng có thể quan sát. Hãy đọc dữ liệu phiên hoặc sự kiện khi sự phân biệt này quan trọng.
+
+Context còn phơi bày nhiều miền hơn những gì bảng liệt kê, gồm catalog, lệnh, tích hợp, MCP server, tham chiếu, kỹ năng, lưu
+trữ, VCS, worktree và tìm kiếm web. Xem [context tiện ích mở rộng đầy đủ](/build/plugins#api).
+
+## Đăng ký móc nối trong `setup`
+
+V1 trả về các móc nối theo khoá chuỗi. V2 đăng ký từng móc nối trên miền sở hữu thao tác đó. Callback nhận một sự kiện có
+thể thay đổi thay vì hai object `input` và `output` riêng biệt.
+
+```ts title="V1"
+import type { Plugin } from "@opencode-ai/plugin"
+
+export const GuardPlugin: Plugin = async () => ({
+  "tool.execute.before": async (input, output) => {
+    if (input.tool === "read" && output.args.filePath.includes(".env")) {
+      throw new Error("Do not read .env files")
+    }
+  },
+  "shell.env": async (_input, output) => {
+    output.env.COMPANY_ENV = "development"
+  },
+})
+```
+
+```ts title="V2"
+import { Plugin } from "@opencode/plugin"
+
+export default Plugin.define({
+  id: "company.guard",
+  async setup(ctx) {
+    await ctx.tool.hook("execute.before", (event) => {
+      const input = event.input as { filePath?: string }
+      if (event.tool === "read" && input.filePath?.includes(".env")) {
+        throw new Error("Do not read .env files")
+      }
+    })
+
+    await ctx.shell.hook("create.before", (event) => {
+      event.env.COMPANY_ENV = "development"
+    })
+  },
+})
+```
+
+Các đăng ký giữ nguyên hiệu lực suốt vòng đời của tiện ích mở rộng và bị huỷ khi nó được gỡ. Chỉ giữ lại đăng ký được trả
+về khi tiện ích mở rộng cần gỡ sớm đúng móc nối hoặc transform đó bằng `registration.dispose()`.
+
+Dùng bảng này để tìm API V2 gần nhất cho từng móc nối của V1:
+
+| Điểm mở rộng V1                         | API V2                                                                    |
+| -------------------------------------- | ------------------------------------------------------------------------- |
+| `event`                                | `ctx.event.subscribe()`                                                   |
+| `dispose`                              | hàm dọn dẹp do `setup` trả về                                             |
+| `config`                               | các transform trên các miền bị ảnh hưởng                                  |
+| `tool` map                             | `ctx.tool.transform(...)`                                                 |
+| `auth`                                 | `ctx.integration.transform(...)` và các API tích hợp                       |
+| `provider`                             | `ctx.provider.transform(...)` và `ctx.model.transform(...)`                |
+| `chat.message`                         | `ctx.session.hook("prompt", ...)`                                         |
+| `chat.params`                          | `ctx.session.hook("context", ...)`                                        |
+| `chat.headers`                         | `ctx.session.hook("model.request", ...)` hoặc `"http.request"`            |
+| `permission.ask`                       | `ctx.permission.hook("evaluate", ...)`                                    |
+| `command.execute.before`               | transform của lệnh hoặc móc nối lời nhắc, tuỳ theo ý định                   |
+| `tool.execute.before`                  | `ctx.tool.hook("execute.before", ...)`                                    |
+| `tool.execute.after`                   | `ctx.tool.hook("execute.after", ...)`                                     |
+| `shell.env`                            | `ctx.shell.hook("create.before", ...)`                                    |
+| `tool.definition`                      | `ctx.tool.transform(...)`                                                 |
+| `experimental.chat.system.transform`   | `ctx.session.hook("context", ...)` và chỉnh sửa `event.system`            |
+| `experimental.chat.messages.transform` | `ctx.session.hook("context", ...)` và chỉnh sửa `event.messages`          |
+| `experimental.session.compacting`      | `ctx.session.hook("compaction", ...)`                                     |
+
+Đây là các đích đến khi chuyển đổi, không phải lúc nào cũng là đổi tên tương đương chính xác. Cụ thể là móc nối `prompt` của
+V2 chạy trước khi lời nhắc được tiếp nhận bền vững, trong khi `context` chạy ngay trước một request mô hình của tác nhân. Hãy
+đăng ký riêng `context`, `compaction`, `generate` và `title` nếu một phép biến đổi phải áp dụng cho mọi loại request mô hình.
+
+Không phải móc nối thử nghiệm nào của V1 cũng có móc nối V2 tương ứng trực tiếp. Hãy đánh giá lại các tiện ích mở rộng dùng
+`experimental.compaction.autocontinue`, `experimental.provider.small_model` hoặc `experimental.text.complete` dựa trên
+API phiên, nhà cung cấp, mô hình và sự kiện của V2, thay vì giữ lại một giả định về vòng đời nội bộ.
+
+`command.execute.before` cũng không có móc nối toàn cục nào tương ứng một-một. Hãy đăng ký một lệnh với
+`ctx.command.transform` khi tiện ích mở rộng sở hữu lệnh đó. Hãy dùng móc nối lời nhắc khi ý định thực sự là sửa các lời nhắc
+được gửi bởi lệnh và các nguồn lời nhắc khác.
+
+## Chuyển các móc nối request
+
+V2 tách riêng việc tiếp nhận lời nhắc, context mà mô hình nhìn thấy, tuỳ chọn mô hình theo ngữ nghĩa và HTTP gốc. Hãy chọn
+lớp hẹp nhất mà tiện ích mở rộng của bạn cần.
+
+```ts title="V1"
+export const RequestPlugin = async () => ({
+  "chat.params": async (_input, output) => {
+    output.temperature = 0.2
+    output.maxOutputTokens = 8_000
+  },
+  "chat.headers": async (_input, output) => {
+    output.headers["x-plugin"] = "review"
+  },
+  "experimental.chat.system.transform": async (_input, output) => {
+    output.system.push("Focus on correctness.")
+  },
+})
+```
+
+```ts title="V2"
+import { Plugin } from "@opencode/plugin"
+
+export default Plugin.define({
+  id: "review-request",
+  async setup(ctx) {
+    await ctx.session.hook("context", (event) => {
+      event.system.push({ type: "text", text: "Focus on correctness." })
+      event.options.temperature = 0.2
+      event.options.maxTokens = 8_000
+    })
+
+    await ctx.session.hook("model.request", (event) => {
+      event.headers["x-plugin"] = "review"
+    })
+  },
+})
+```
+
+Dùng các tuỳ chọn nhà cung cấp theo ngữ nghĩa trong `event.options`. Dùng `model.request` cho header và thiết lập request
+thô của mô hình, và chỉ dùng `http.request` hoặc `http.response` khi tiện ích mở rộng cần trao đổi HTTP gốc với nhà cung
+cấp. Các móc nối riêng theo nhà cung cấp có thể truyền `{ providerID: "..." }` làm đối số thứ ba cho `ctx.session.hook`.
+
+## Chuyển công cụ tuỳ chỉnh
+
+V1 trả về map `tool` được xây dựng bằng helper `tool()` cũ. V2 đăng ký định nghĩa công cụ thông qua một trình biên tập
+`ctx.tool.transform` đồng bộ. Schema công cụ dùng JSON Schema, và việc thực thi trả về nội dung có cấu trúc.
+
+```ts title="V1"
+import { tool } from "@opencode-ai/plugin"
+
+export const ToolsPlugin = async () => ({
+  tool: {
+    greeting: tool({
+      description: "Create a greeting",
+      args: { name: tool.schema.string() },
+      async execute(args) {
+        return `Hello ${args.name}!`
+      },
+    }),
+  },
+})
+```
+
+```ts title="V2"
+import { Plugin } from "@opencode/plugin"
+
+export default Plugin.define({
+  id: "greeting",
+  async setup(ctx) {
+    await ctx.tool.transform((editor) => {
+      editor.add({
+        name: "greeting",
+        description: "Create a greeting",
+        input: {
+          type: "object",
+          properties: { name: { type: "string" } },
+          required: ["name"],
+          additionalProperties: false,
+        },
+        async execute(input) {
+          return { content: `Hello ${(input as { name: string }).name}!` }
+        },
+      })
+    })
+  },
+})
+```
+
+Transform là các thay đổi trạng thái có thể phát lại. Hãy giữ callback của chúng đồng bộ, rẻ và không có tác dụng phụ một
+lần. Hãy tải dữ liệu bên ngoài trước khi đăng ký, nắm giữ nó trong callback, và gọi phương thức `reload()` của miền khi dữ
+liệu đó thay đổi. Một transform của tiện ích mở rộng chạy sau sẽ thấy các thay đổi trước đó và có thể cập nhật, thay thế
+hoặc gỡ bỏ chúng.
+
+Cùng mẫu transform đó thay thế các móc nối `config` và `provider` của V1, nhưng V2 không phơi bày một object config toàn
+cục có thể thay đổi. Hãy đăng ký thay đổi với miền sở hữu nó: `ctx.agent`, `ctx.provider`, `ctx.model`, `ctx.command`,
+`ctx.integration`, `ctx.mcp`, `ctx.reference`, `ctx.skill`, `ctx.tool`, `ctx.vcs`, `ctx.websearch` hoặc `ctx.worktree`.
+Phương thức xác thực thuộc về tích hợp; transform của nhà cung cấp đóng góp định nghĩa nguồn và thiết lập của nhà cung cấp,
+còn transform của mô hình áp dụng hạn chế và ghi đè lên toàn bộ tập mô hình của nhà cung cấp đang hoạt động.
+
+```ts
+await ctx.provider.transform((editor) => {
+  editor.update("anthropic", (provider) => {
+    provider.headers = { ...provider.headers, "x-company": "engineering" }
+  })
+})
+
+await ctx.model.transform((editor) => {
+  editor.list("anthropic").forEach((model) => {
+    if (!model.capabilities.tools) editor.remove(model.providerID, model.id)
+  })
+})
+```
+
+## Chuyển sự kiện và dọn dẹp
+
+Callback `event` của V1 trở thành một đăng ký bất đồng bộ vào stream sự kiện công khai của server. Hãy huỷ nó từ hàm dọn dẹp
+do `setup` trả về.
+
+```ts title="V2"
+import { Plugin } from "@opencode/plugin"
+
+export default Plugin.define({
+  id: "notifications",
+  setup(ctx) {
+    const controller = new AbortController()
+
+    void (async () => {
+      for await (const event of ctx.event.subscribe({ signal: controller.signal })) {
+        if (event.type === "session.idle") console.log("Session completed")
+      }
+    })()
+
+    return () => controller.abort()
+  },
+})
+```
+
+Hãy dùng hàm dọn dẹp cho timer, tiến trình con, socket và các tài nguyên khác mà tiện ích mở rộng sở hữu. Đăng ký móc nối và
+transform được giới hạn theo tiện ích mở rộng và được dọn dẹp tự động.
+
+## Chuyển options và trạng thái bền vững
+
+Đọc options từ `ctx.options`. Hãy dùng `ctx.storage` thay vì tự tạo một tệp toàn cục khi trạng thái thuộc về một tiện ích mở
+rộng; các giá trị JSON của nó bền vững và được giới hạn theo tiện ích mở rộng.
+
+```ts
+const strict = ctx.options.strict === true
+await ctx.storage.set("settings", { strict })
+const settings = await ctx.storage.get("settings")
+```
+
+## Hỗ trợ V1 và V2 từ một package
+
+Một package có thể tạm thời phơi bày cả hai cách hiện thực từ một export mặc định. V1 gọi `server()` và V2 gọi `setup()`. Hai
+API vẫn tách biệt; hình dạng này không tự động chuyển đổi móc nối.
+
+```ts title="src/index.ts"
+import { Plugin } from "@opencode/plugin"
+
+export default {
+  ...Plugin.define({
+    id: "example",
+    async setup(ctx) {
+      await ctx.tool.hook("execute.before", () => {
+        console.log("A tool is about to run")
+      })
+    },
+  }),
+  async server() {
+    return {
+      "tool.execute.before": async () => {
+        console.log("A tool is about to run")
+      },
+    }
+  },
+}
+```
+
+Entrypoint dạng object của V1 được hỗ trợ trong OpenCode `1.18.29` trở lên. Nếu bạn cần hỗ trợ các bản phát hành V1 cũ
+hơn, hãy dùng các phiên bản package hoặc entrypoint riêng biệt và kiểm thử bản phát hành cũ nhất mà bạn tuyên bố hỗ trợ. Hãy
+gỡ bỏ cách hiện thực V1 sau khi thời hạn hỗ trợ của bạn kết thúc.
+
+## Kiểm tra tiện ích mở rộng đã chuyển đổi
+
+Với mỗi tiện ích mở rộng:
+
+1. Xác nhận ID và nguồn của nó xuất hiện trong danh sách tiện ích mở rộng đang hoạt động.
+2. Chạy thử mọi móc nối, transform, công cụ, lệnh và đăng ký sự kiện đã đăng ký.
+3. Kiểm tra việc dọn dẹp bằng cách tải lại hoặc gỡ bỏ tiện ích mở rộng.
+4. Kiểm thử options của tiện ích mở rộng và trạng thái đã lưu với một dự án sạch.
+5. Với một package đã xuất bản, hãy kiểm thử package đã cài đặt thay vì chỉ bản sao liên kết trong không gian làm việc.
+
+Xem [hướng dẫn tiện ích mở rộng](/build/plugins) để biết toàn bộ Promise API, [tiện ích mở rộng
+Effect](/build/plugins/effect) để biết entrypoint Effect, [RPC cho tiện ích mở rộng](/build/plugins/rpc) để biết các
+phương thức và sự kiện tuỳ chỉnh, và [tiện ích mở rộng CLI](/build/plugins/cli) để biết các mở rộng TUI.

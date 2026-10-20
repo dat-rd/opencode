@@ -1,0 +1,100 @@
+---
+title: "Effect"
+---
+
+`@opencode/sdk/effect` là SDK nhúng Effect-native. Các thao tác trả về Effect và Stream có kiểu, và việc đóng Scope sở
+hữu nó sẽ giải phóng router, các dịch vụ Location, fiber và các đăng ký tiện ích mở rộng.
+
+```sh
+bun add @opencode/sdk effect
+```
+
+## Tạo host
+
+Tạo host bên trong `Effect.scoped`, rồi dùng các nhóm API đã sinh ra của nó hoặc bí danh `sessions`.
+
+```ts
+import { AbsolutePath, Location, OpenCode } from "@opencode/sdk/effect"
+import { Effect } from "effect"
+
+const program = Effect.scoped(
+  Effect.gen(function* () {
+    const opencode = yield* OpenCode.create()
+    const session = yield* opencode.sessions.create({
+      location: Location.Ref.make({ directory: AbsolutePath.make("/workspace") }),
+    })
+    yield* opencode.sessions.prompt({
+      sessionID: session.id,
+      text: "Review the current changes",
+    })
+    return session
+  }),
+)
+
+const session = await Effect.runPromise(program)
+```
+
+Host nhúng dùng cùng giá trị schema, lỗi đã khai báo, tuỳ chọn request và Stream như `@opencode/client/effect`.
+
+```ts
+const info = yield* opencode.server.info()
+const sessions = yield* opencode.sessions.list()
+```
+
+## Stream sự kiện
+
+Các endpoint dạng stream trả về giá trị Effect `Stream`. Hãy fork consumer trong Scope của host khi chúng cần chạy ở
+chế độ nền.
+
+```ts
+import { Effect, Stream } from "effect"
+
+yield* opencode.events.subscribe().pipe(
+  Stream.runForEach((event) => Effect.logInfo("OpenCode event", { type: event.type })),
+  Effect.forkScoped,
+)
+```
+
+## Tùy chỉnh
+
+Tùy chỉnh instance OpenCode của bạn bằng cách đăng ký tiện ích mở rộng Effect. Dùng host nhúng để tùy chỉnh tác nhân,
+mô hình, công cụ và các hành vi khác:
+
+```ts
+import { Plugin } from "@opencode/plugin/effect"
+import { Effect } from "effect"
+
+const plugin = Plugin.define({
+  id: "customize-agent",
+  effect: (ctx) =>
+    Effect.gen(function* () {
+      const agent = ctx.agent
+      yield* agent.transform((agents) => {
+        agents.update("build", (agent) => {
+          agent.description = "Builds features and fixes bugs for our team"
+        })
+      })
+    }),
+})
+
+yield* opencode.plugin(plugin)
+```
+
+Xem [tài liệu tiện ích mở rộng Effect đầy đủ](/build/plugins/effect) để biết về móc nối, transform, công cụ và toàn bộ
+context của tiện ích mở rộng.
+
+## Layer
+
+Dùng `OpenCode.layer()` khi host nhúng nên là một dịch vụ của ứng dụng.
+
+```ts
+import { OpenCode } from "@opencode/sdk/effect"
+import { Effect } from "effect"
+
+const program = Effect.gen(function* () {
+  const opencode = yield* OpenCode.Service
+  return yield* opencode.server.info()
+})
+
+const health = await Effect.runPromise(program.pipe(Effect.provide(OpenCode.layer())))
+```

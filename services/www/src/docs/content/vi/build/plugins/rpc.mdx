@@ -1,0 +1,225 @@
+---
+title: "RPC"
+---
+
+Tiện ích mở rộng có thể phơi bày các phương thức và sự kiện tuỳ chỉnh chạy trên server và có thể được gọi bởi tiện ích mở
+rộng hoặc client khác.
+
+## Định nghĩa
+
+Dùng `Rpc.define` để liệt kê các phương thức, lỗi và sự kiện của RPC.
+
+```ts title="src/rpc.ts"
+import { Rpc } from "@opencode/plugin/rpc"
+
+export const Acme = Rpc.define({
+  id: "acme",
+  methods: {
+    search: {
+      input: {
+        type: "object",
+        properties: { query: { type: "string" } },
+        required: ["query"],
+        additionalProperties: false,
+      },
+      output: {
+        type: "object",
+        properties: { text: { type: "string" } },
+        required: ["text"],
+        additionalProperties: false,
+      },
+      errors: {
+        not_found: {
+          type: "object",
+          properties: { query: { type: "string" } },
+          required: ["query"],
+          additionalProperties: false,
+        },
+      },
+    },
+  },
+  events: {
+    updated: {
+      schema: {
+        type: "object",
+        properties: {
+          itemID: { type: "string" },
+          text: { type: "string" },
+        },
+        required: ["itemID", "text"],
+        additionalProperties: false,
+      },
+    },
+  },
+})
+```
+
+### Kiểm tra
+
+Định nghĩa RPC mô tả hình dạng input và output của phương thức, sự kiện và lỗi. Nó hỗ trợ hai định dạng schema:
+
+- JSON Schema, đơn giản và không cần dependency nào.
+- Bất kỳ trình kiểm tra nào tuân thủ Standard Schema
+  - Zod
+  - Valibot
+  - ArkType
+
+### Input và output
+
+Mỗi phương thức có thể định nghĩa schema `input` cho đối số của nó và schema `output` cho giá trị trả về. Hãy bỏ qua bất kỳ
+mục nào nếu phương thức không nhận hoặc không trả về giá trị.
+
+```ts
+search: {
+  input: {
+    type: "object",
+    properties: { query: { type: "string" } },
+    required: ["query"],
+  },
+  output: {
+    type: "object",
+    properties: { text: { type: "string" } },
+    required: ["text"],
+  },
+}
+```
+
+Giá trị JSON Schema có kiểu là `unknown` trong TypeScript, vì vậy hãy thu hẹp chúng trước khi dùng. Standard Schema suy
+luận kiểu input và output.
+
+### Lỗi
+
+Thêm một map `errors` vào phương thức cho các lỗi dự kiến. Mỗi khoá trở thành `type` của lỗi, và schema của nó định nghĩa
+`data` của lỗi.
+
+```ts
+errors: {
+  not_found: {
+    type: "object",
+    properties: { query: { type: "string" } },
+    required: ["query"],
+    additionalProperties: false,
+  },
+}
+```
+
+OpenCode dành riêng các tên lỗi bắt đầu bằng `rpc.`.
+
+### Sự kiện
+
+Thêm sự kiện vào map `events` cấp cao nhất. Mỗi sự kiện có một schema cho dữ liệu được gửi tới subscriber.
+
+Dữ liệu sự kiện phải là một object. Hãy dùng schema object rỗng khi không có dữ liệu:
+
+```ts
+events: {
+  refreshed: {
+    schema: { type: "object", additionalProperties: false },
+  },
+}
+```
+
+Giá trị vô hướng, mảng, `null` và `undefined` không phải là dữ liệu sự kiện hợp lệ.
+
+## Hiện thực
+
+Đăng ký cách hiện thực bên trong `setup`:
+
+```ts title="src/index.ts"
+import { Plugin } from "@opencode/plugin"
+import { Acme } from "./rpc.js"
+
+export default Plugin.define({
+  id: "acme-plugin",
+  async setup(ctx) {
+    const registration = await ctx.rpc.register(Acme, {
+      search: async (input, context) => {
+        const { query } = input as { query: string }
+        const text = await findText(query, { signal: context.signal })
+        if (!text) return context.error("not_found", "Result not found", { query })
+        return { text }
+      },
+    })
+
+    const acme = ctx.rpc(Acme)
+    const result = await acme.search({ query: "hello" })
+
+    await registration.events.emit("updated", { itemID: "item-1", text: "ready" })
+  },
+})
+```
+
+Sau khi đăng ký RPC, chính tiện ích mở rộng đó có thể gọi nó qua `ctx.rpc(Acme)`.
+
+Đối số thứ hai gồm `signal` để huỷ và `context.error(...)` cho các lỗi đã khai báo. Bạn có thể trả về hoặc ném lỗi.
+
+Một tiện ích mở rộng có thể đăng ký nhiều hơn một RPC. Huỷ đăng ký sẽ gỡ bỏ nó.
+
+## Gọi
+
+Sau khi RPC được đăng ký, bạn có thể gọi nó qua HTTP hoặc từ một tiện ích mở rộng khác.
+
+### HTTP
+
+Tạo một client OpenCode, rồi dùng `client.rpc` để tạo subclient cho RPC:
+
+```ts
+import { OpenCode } from "@opencode/client"
+import { Acme } from "opencode-acme-plugin/rpc"
+
+const client = OpenCode.make({
+  baseUrl: "http://localhost:4096",
+})
+
+const acme = client.rpc(Acme)
+const result = await acme.search({ query: "hello" })
+```
+
+### Tiện ích mở rộng
+
+Tiện ích mở rộng vốn đã có một client OpenCode. Ví dụ, một tiện ích mở rộng TUI có thể tạo cùng subclient RPC đó từ
+`context.client`:
+
+```ts title="src/tui.ts"
+import { Plugin } from "@opencode/plugin/tui"
+import { Acme } from "opencode-acme-plugin/rpc"
+
+export default Plugin.define({
+  id: "acme-tui",
+  async setup(context) {
+    const acme = context.client.rpc(Acme)
+    const result = await acme.search({ query: "hello" })
+    console.log(result)
+  },
+})
+```
+
+### Đăng ký
+
+Dùng `events.on` cho một callback và hủy đăng ký khi không còn cần listener:
+
+```ts
+const unsubscribe = acme.events.on("updated", (event) => {
+  console.log(event.type, event.location.directory, event.data.text)
+})
+
+unsubscribe()
+```
+
+Với async iterable, hãy dùng `events.subscribe("updated")`:
+
+```ts
+for await (const event of acme.events.subscribe("updated")) {
+  console.log(event.data.text)
+}
+```
+
+Đăng ký sự kiện chỉ có hiệu lực trực tiếp, nên subscriber đã ngắt kết nối sẽ bỏ lỡ các sự kiện.
+
+- Đăng ký bằng tên cục bộ, chẳng hạn `updated`.
+- Kiểu nhận được có tiền tố, chẳng hạn `rpc.acme.updated`.
+- Mỗi sự kiện gồm `data` và `location`.
+- Việc gỡ tiện ích mở rộng sẽ đóng các đăng ký của nó.
+
+Client bên ngoài nhận sự kiện từ mọi location, vì vậy hãy kiểm tra `event.location` khi cần. Tiện ích mở rộng phía server
+vẫn cần được cấu hình và đang chạy.

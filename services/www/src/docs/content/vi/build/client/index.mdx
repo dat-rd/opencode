@@ -1,0 +1,163 @@
+---
+title: "JavaScript"
+---
+
+`@opencode/client` là client TypeScript cho HTTP API của OpenCode. Hãy dùng nó khi ứng dụng của bạn kết nối tới một server
+OpenCode qua mạng. Kiểu và phương thức gốc của nó được sinh ra từ cùng hợp đồng với [tài liệu API](/api). Kiểu RPC của
+tiện ích mở rộng đến từ các định nghĩa RPC được import.
+
+## Cài đặt
+
+```sh
+bun add @opencode/client
+```
+
+## Tạo client
+
+Tạo client bằng URL của server, rồi gọi các phương thức được nhóm theo tài nguyên API:
+
+```ts
+import { OpenCode } from "@opencode/client"
+
+const client = OpenCode.make({
+  baseUrl: "http://localhost:4096",
+})
+
+const session = await client.session.create({
+  location: { directory: "/workspace" },
+})
+
+await client.session.prompt({
+  sessionID: session.id,
+  text: "Review the current changes",
+})
+```
+
+## Header và request
+
+Truyền header xác thực hoặc header ứng dụng mặc định cho `OpenCode.make` qua `headers`. Bạn cũng có thể cung cấp một
+cách hiện thực `fetch` tùy chỉnh. Mỗi thao tác nhận các tuỳ chọn request làm đối số cuối cùng, cho một `AbortSignal` hoặc
+header riêng theo từng request. Đăng ký sự kiện là ngoại lệ: chúng chỉ nhận cơ chế huỷ cục bộ của subscriber và dùng header
+của client gốc.
+
+```ts
+const client = OpenCode.make({
+  baseUrl: "https://opencode.example.com",
+  headers: {
+    authorization: `Bearer ${process.env.OPENCODE_TOKEN}`,
+  },
+})
+
+await client.session.list(undefined, {
+  signal: AbortSignal.timeout(10_000),
+})
+```
+
+## Stream sự kiện
+
+Các endpoint dạng stream trả về async iterable:
+
+```ts
+for await (const event of client.event.subscribe()) {
+  console.log(event.type)
+}
+```
+
+Subscriber sự kiện native và RPC dùng chung một kết nối lazy cho mỗi client. Việc tạo client, handle và iterable không mở
+kết nối sự kiện nào; chỉ lúc bắt đầu consume thì kết nối mới mở. Ngắt vòng lặp hoặc huỷ một subscriber chỉ kết thúc iterator
+đó. Subscriber cuối cùng rời đi sẽ đóng kết nối. Nguồn dùng chung chờ các subscriber đang hoạt động nhận từng sự kiện; consumer
+nên đệm dữ liệu trước khi thực hiện tác vụ chậm.
+
+Đăng ký chỉ có hiệu lực trực tiếp, không phát lại và không tự động kết nối lại. Một lỗi ở nguồn sẽ kết thúc các đăng ký
+hiện tại; hãy đăng ký lại sau khi khôi phục. Subscriber native đến muộn chỉ nhận marker `server.connected` hiện tại, không
+phải các sự kiện nghiệp vụ trước đó.
+
+## RPC cho tiện ích mở rộng
+
+Import hợp đồng dùng chung của một tiện ích mở rộng và truyền nó cho `client.rpc`:
+
+```ts
+import { OpenCode } from "@opencode/client"
+import { Acme } from "opencode-acme-plugin/rpc"
+
+const acme = client.rpc(Acme)
+const result = await acme.search(
+  { query: "hello" },
+  { location: { directory: "/workspace" }, signal: AbortSignal.timeout(10_000) },
+)
+
+const unsubscribe = acme.events.on("updated", (event) => {
+  console.log(event.type, event.location.directory, event.data.text)
+})
+```
+
+Đối số thứ hai tùy chọn của phương thức chứa `location`, `signal` và `headers`, tách biệt khỏi input do tiện ích mở rộng
+định nghĩa. Khi bỏ qua location, các mặc định của request native được áp dụng: header location gốc, rồi thư mục làm việc
+của server. Không có location nào được chọn khi khởi tạo subclient.
+
+Phương thức suy luận đối số và kết quả từ định nghĩa. Việc phân tích schema thuộc về ranh giới của hợp đồng; bên gọi gửi dạng
+input được chấp nhận, còn handler nhận giá trị đã phân tích. Client Promise chấp nhận định nghĩa Standard Schema hoặc
+JSON Schema thuần và không chạy trình phân tích schema cục bộ: server trả về output đã được phân tích và biến đổi. Các định
+nghĩa Effect Schema cần client Effect.
+
+Lỗi phương thức đã khai báo từ chối giống như lỗi từ các endpoint khác của client Promise, và lỗi sau khi bắt vẫn không
+có kiểu. Subclient có kiểu sẽ loại bỏ lớp bọc lỗi RPC HTTP tổng quát. Lỗi framework dành riêng cho `rpc.*` vẫn là lỗi
+RPC thuần, còn lỗi xác thực, truyền tải và giao thức không liên quan giữ nguyên cách biểu diễn thông thường của client.
+
+Đăng ký RPC dùng tên cục bộ và nhận sự kiện của chính RPC đó từ mọi location. Hãy kiểm tra `event.location` bắt buộc để lọc
+chúng. `events.subscribe` khớp với API async iterable native:
+
+```ts
+for await (const event of acme.events.subscribe("updated")) {
+  console.log(event.data.text)
+}
+```
+
+`events.on` là hàm tiện lợi bọc quanh cùng nguồn đó. Nó trả về hàm hủy đăng ký; các callback bất đồng bộ được chờ theo thứ tự.
+Lỗi callback hoặc nguồn sẽ được ghi log và kết thúc listener đó. Cả đăng ký native và đăng ký có kiểu đều nhận cùng envelope
+`rpc.<rpcID>.<event>` thông thường với dữ liệu sự kiện là đối tượng trực tiếp. Đăng ký trực tiếp không phát lại các sự kiện
+đã bỏ lỡ.
+
+Tiện ích mở rộng phía server phải được cấu hình và phải hiện thực RPC; việc import một định nghĩa không tự đăng ký nó. Xem
+[RPC cho tiện ích mở rộng](/build/plugins/rpc) để biết API định nghĩa và đăng ký. Mọi client HTTP cũng có thể gọi route
+`POST /api/rpc/{rpcID}/{method}` tổng quát với `{ "input": ... }` và nhận `{ "output": ... }`. Trường input/output bị
+bỏ qua biểu thị việc không có giá trị.
+
+## Dịch vụ nền cục bộ
+
+Các entrypoint client chính tương thích với trình duyệt và không bao gồm quản lý tiến trình cục bộ. Trong một ứng dụng
+Node, hãy import API dịch vụ Promise native từ `@opencode/client/service`.
+
+- `Service.discover()` trả về endpoint đã đăng ký và hoạt động ổn định mà không khởi động tiến trình.
+- `Service.ensure()` trả về một dịch vụ tương thích, khởi động dịch vụ khi cần.
+- `Service.stop()` dừng đúng instance dịch vụ đã đăng ký.
+- `Service.headers(endpoint)` tạo header xác thực cho một client.
+
+```ts
+import { OpenCode } from "@opencode/client"
+import { Service } from "@opencode/client/service"
+
+const endpoint = await Service.ensure()
+const client = OpenCode.make({
+  baseUrl: endpoint.url,
+  headers: Service.headers(endpoint),
+})
+
+const info = await client.server.info()
+```
+
+`Service.ensure()` nhận tệp đăng ký, phiên bản, lệnh dịch vụ và callback `onStart` không bắt buộc. `version` nhận hoặc một
+giá trị chính xác, hoặc một hàm kiểm tra tính tương thích:
+
+```ts
+const endpoint = await Service.ensure({
+  file: "/var/run/opencode/service.json",
+  version: (version) => version.startsWith("2."),
+  command: ["opencode", "serve", "--service"],
+  onStart(reason, previousVersion) {
+    console.log(reason, previousVersion)
+  },
+})
+```
+
+Bỏ qua các tuỳ chọn này để dùng đường dẫn đăng ký tiêu chuẩn cùng lệnh `opencode serve --service`.
