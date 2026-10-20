@@ -1,0 +1,61 @@
+---
+title: "Tiện ích mở rộng"
+---
+
+Các tiện ích mở rộng được cấu hình trong `opencode.json(c)` mà phơi bày một thành phần TUI sẽ được CLI nạp tự động. Để biết cách
+xây dựng tiện ích mở rộng, xem [Xây dựng tiện ích mở rộng](/build/plugins). Bạn không cần thêm cùng gói đó vào `cli.json`. CLI
+lấy danh sách tiện ích mở rộng đang hoạt động từ OpenCode server đã kết nối, nên điều này cũng hoạt động khi server ở từ xa.
+
+Hãy dùng `cli.json` cho các tiện ích mở rộng chỉ dùng ở CLI. Những tiện ích mở rộng này chạy cục bộ trong terminal và vẫn hoạt động khi CLI kết nối
+tới một server từ xa:
+
+```json title="cli.json"
+{
+  "plugins": [
+    "opencode.example",
+    "opencode.example@1.0.0",
+    "@example/opencode-tui",
+    "@example/opencode-tui@1.0.0",
+    "./plugins/status",
+    "../plugins/status",
+    "/home/user/plugins/status",
+    "file:///home/user/plugins/status"
+  ]
+}
+```
+
+Các mục được xử lý theo thứ tự. Tiền tố một ID hoặc ký tự đại diện bằng `-` để tắt các tiện ích mở rộng khớp:
+
+```json title="cli.json"
+{
+  "plugins": ["*", "-opencode.notifications", "-team.*"]
+}
+```
+
+Truyền tùy chọn cho tiện ích mở rộng bằng dạng đối tượng:
+
+```json title="cli.json"
+{
+  "plugins": [
+    {
+      "package": "@example/opencode-tui",
+      "options": {
+        "compact": true
+      }
+    }
+  ]
+}
+```
+
+OpenCode cũng tìm thấy các tiện ích mở rộng trong thư mục cấu hình toàn cục và trong các thư mục `.opencode` của dự án. Mỗi tiện ích mở rộng dùng
+cùng cấu trúc với một gói đã công bố, với các điểm vào server và TUI được đặt cạnh nhau.
+
+```text title="Plugin discovery paths"
+<global-config>/plugins/status/index.ts
+<global-config>/plugins/status/tui.ts
+<project>/.opencode/plugins/status/index.ts
+<project>/.opencode/plugins/status/tui.ts
+```
+
+Các tiện ích mở rộng được tìm thấy có thể import `@opencode/plugin/tui` trực tiếp; OpenCode phân giải gói đó lúc chạy. Xem
+[Xây dựng tiện ích mở rộng CLI](/build/plugins/cli) để biết các ví dụ.

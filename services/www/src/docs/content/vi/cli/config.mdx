@@ -1,0 +1,422 @@
+---
+title: "Cài đặt"
+description: "Cấu hình mọi cài đặt của OpenCode CLI và TUI."
+---
+
+Cài đặt CLI chỉ điều khiển các client terminal. Chúng tách biệt với cài đặt server và dự án trong
+`opencode.json(c)`.
+
+Nhấn `Ctrl+P`, rồi chọn **Open settings** để thay đổi các cài đặt thường dùng ngay trong TUI.
+
+<img src={`${import.meta.env.BASE_URL}assets/docs/cli/settings.png`} alt="Hộp thoại cài đặt TUI của OpenCode" />
+
+## Tệp cấu hình
+
+OpenCode lưu cài đặt CLI trong một tệp toàn cục:
+
+```text
+~/.config/opencode/cli.json
+```
+
+Khi `$XDG_CONFIG_HOME` được đặt, OpenCode dùng:
+
+```text
+$XDG_CONFIG_HOME/opencode/cli.json
+```
+
+Không có tệp cài đặt CLI cục bộ theo dự án. Hãy thêm JSON Schema đã công bố để có kiểm tra và gợi ý:
+
+```json title="cli.json"
+{
+  "$schema": "https://opencode.ai/v2/cli.json"
+}
+```
+
+OpenCode thêm `$schema` khi nó tạo hoặc di trú tệp này. Các cài đặt không hợp lệ bị từ chối, và những chỉnh sửa hợp lệ sẽ được nạp lại
+ngay khi TUI đang chạy.
+
+## Cấu hình nội tuyến
+
+Đặt `OPENCODE_CLI_CONFIG_CONTENT` để áp dụng cài đặt CLI từ JSON nội tuyến:
+
+```sh
+OPENCODE_CLI_CONFIG_CONTENT='{"tabs":{"mode":"off"}}' opencode
+```
+
+OpenCode gộp các cài đặt nội tuyến đè lên `cli.json` toàn cục. Các đối tượng lồng nhau được gộp, còn các mảng và giá trị vô hướng
+từ môi trường sẽ thay thế giá trị toàn cục. Cài đặt nội tuyến vẫn là giá trị chính thức chừng nào biến đó còn được đặt.
+
+## Hiển thị
+
+Chọn một giao diện, điều khiển chuyển động của giao diện và ghi đè con trỏ terminal:
+
+```json title="cli.json"
+{
+  "theme": {
+    "name": "tokyonight",
+    "mode": "system"
+  },
+  "animations": true,
+  "cursor": {
+    "style": "block",
+    "blinking": true
+  }
+}
+```
+
+<div class="docs-table-scroll" role="region" aria-label="Cài đặt hiển thị" tabIndex={0}>
+
+| Cài đặt           | Giá trị                                 | Mô tả                                                                       |
+| ----------------- | --------------------------------------- | --------------------------------------------------------------------------- |
+| `theme.name`      | string                                  | Chọn một giao diện tích hợp, tùy chỉnh hoặc lấy từ terminal.                |
+| `theme.mode`      | `system`, `dark`, or `light`            | Theo giao diện của terminal hoặc khóa giao diện ở một chế độ màu.           |
+| `animations`      | boolean                                 | Bật hiệu ứng chuyển động của giao diện.                                     |
+| `cursor.style`    | `block`, `underline`, `line`, `default` | Đặt hình dạng con trỏ. `default` giữ nguyên hình dạng con trỏ của terminal. |
+| `cursor.blinking` | boolean                                 | Điều khiển việc con trỏ nhấp nháy. Không có tác dụng khi kiểu là `default`. |
+
+</div>
+
+Xem [Giao diện](/cli/theme) để chọn và tạo giao diện.
+
+## Nhập
+
+Cấu hình việc bắt chuột, cuộn, ngữ cảnh trình chỉnh sửa, dán và xem trước hình ảnh trong lời nhắc:
+
+```json title="cli.json"
+{
+  "mouse": true,
+  "scroll": {
+    "speed": 3,
+    "acceleration": false
+  },
+  "prompt": {
+    "editor": true,
+    "paste": "compact",
+    "image_preview": false
+  }
+}
+```
+
+<div class="docs-table-scroll" role="region" aria-label="Cài đặt nhập" tabIndex={0}>
+
+| Cài đặt                | Giá trị                  | Mô tả                                                                            |
+| ---------------------- | ------------------------ | -------------------------------------------------------------------------------- |
+| `mouse`                | boolean                  | Bật việc terminal bắt chuột.                                                     |
+| `scroll.speed`         | number, at least `0.001` | Đặt quãng đường cố định cho mỗi nhịp cuộn.                                       |
+| `scroll.acceleration`  | boolean                  | Tăng tốc khi cuộn liên tục. Khi bật, nó được ưu tiên hơn tốc độ.                 |
+| `prompt.editor`        | boolean                  | Đưa tệp hoặc vùng chọn đang hoạt động của trình chỉnh sửa vào ngữ cảnh lời nhắc. |
+| `prompt.paste`         | `compact` or `full`      | Hiển thị nội dung dán lớn dưới dạng placeholder gọn gàng hoặc toàn văn bản.      |
+| `prompt.image_preview` | boolean                  | Hiển thị xem trước tệp đính kèm hình ảnh phía trên ô nhập lời nhắc.              |
+
+</div>
+
+## Phiên
+
+Cấu hình cách hiển thị các phiên TUI toàn màn hình và nơi các phiên mới bắt đầu:
+
+```json title="cli.json"
+{
+  "session": {
+    "sidebar": "auto",
+    "scrollbar": false,
+    "thinking": "hide",
+    "grouping": "auto",
+    "image_preview": false,
+    "tps": true,
+    "markdown": "rendered",
+    "new_location": "launch",
+    "permissions": "prompt"
+  }
+}
+```
+
+<div class="docs-table-scroll" role="region" aria-label="Cài đặt phiên" tabIndex={0}>
+
+| Cài đặt                 | Giá trị                  | Mô tả                                                                                       |
+| ----------------------- | ------------------------ | ------------------------------------------------------------------------------------------- |
+| `session.sidebar`       | `auto` or `hide`         | Hiện thanh bên khi còn đủ chỗ hoặc luôn ẩn đi.                                              |
+| `session.scrollbar`     | boolean                  | Hiện thanh cuộn của bản ghi hội thoại.                                                      |
+| `session.thinking`      | `show` or `hide`         | Hiện hoặc ẩn suy luận của mô hình theo mặc định.                                            |
+| `session.grouping`      | `auto` or `none`         | Gom nhóm các mục bản ghi hội thoại liên quan hoặc hiển thị từng mục riêng lẻ.               |
+| `session.image_preview` | boolean                  | Hiện hình ảnh từ tệp đính kèm của người dùng và từ kết quả công cụ trong bản ghi hội thoại. |
+| `session.tps`           | boolean                  | Hiện số token đầu ra mỗi giây trong chân trang của trợ lý.                                  |
+| `session.markdown`      | `source` or `rendered`   | Hiện các dấu cú pháp Markdown hoặc che chúng trong nội dung đã render.                      |
+| `session.new_location`  | `launch` or `inherit`    | Bắt đầu tại thư mục khởi chạy của TUI hoặc kế thừa vị trí của phiên đang hoạt động.         |
+| `session.permissions`   | `prompt` or `autoaccept` | Hỏi khi có yêu cầu quyền hoặc tự động chấp nhận mọi yêu cầu.                                |
+
+</div>
+
+## Tab
+
+Cấu hình dải tab phiên cố định:
+
+```json title="cli.json"
+{
+  "tabs": {
+    "mode": "auto",
+    "scope": "cwd",
+    "layout": "horizontal",
+    "indicators": "status"
+  }
+}
+```
+
+Cài đặt boolean cũ `tabs.enabled` vẫn được hỗ trợ: `true` là `on` và `false` là `off`. OpenCode đọc nó mà không ghi lại tệp cấu hình.
+
+<div class="docs-table-scroll" role="region" aria-label="Cài đặt tab" tabIndex={0}>
+
+| Cài đặt           | Giá trị                    | Mô tả                                                                                 |
+| ----------------- | -------------------------- | ------------------------------------------------------------------------------------- |
+| `tabs.mode`       | `auto`, `on`, or `off`     | Dùng tab tự động, luôn luôn hoặc không bao giờ. Chế độ auto ẩn chúng bên trong Herdr. |
+| `tabs.scope`      | `cwd` or `global`          | Giữ tab riêng cho từng thư mục làm việc hoặc dùng chung toàn cục.                     |
+| `tabs.layout`     | `horizontal` or `vertical` | Đặt tab trong một dải ngang hoặc một thanh bên dọc.                                   |
+| `tabs.indicators` | `status` or `numbers`      | Hiện biểu tượng trạng thái hoặc luôn hiện số thứ tự tab.                              |
+
+</div>
+
+Chỉ báo dạng số vẫn giữ màu trạng thái và hiệu ứng nền động. Phím tắt Ctrl+số chuyển tab ở cả hai chế độ chỉ báo.
+
+## Diff
+
+Cấu hình phạm vi và cách trình bày diff ban đầu:
+
+```json title="cli.json"
+{
+  "diffs": {
+    "source": "branch",
+    "wrap": "word",
+    "tree": true,
+    "single": false,
+    "view": "auto"
+  }
+}
+```
+
+<div class="docs-table-scroll" role="region" aria-label="Cài đặt diff" tabIndex={0}>
+
+| Cài đặt        | Giá trị                                     | Mô tả                                              |
+| -------------- | ------------------------------------------- | -------------------------------------------------- |
+| `diffs.source` | `branch`, `committed`, `working`, or `turn` | Đặt phạm vi xem xét ban đầu.                       |
+| `diffs.wrap`   | `word` or `none`                            | Ngắt dòng dài theo từ hoặc để nguyên không ngắt.   |
+| `diffs.tree`   | boolean                                     | Hiện cây tệp của diff.                             |
+| `diffs.single` | boolean                                     | Chỉ hiện patch của tệp đang chọn.                  |
+| `diffs.view`   | `auto`, `split`, or `unified`               | Đặt bố cục. `auto` chọn dựa trên bề rộng khả dụng. |
+
+</div>
+
+`branch` hiện **Tất cả** thay đổi trên nhánh và cục bộ, `committed` chỉ hiện các commit của nhánh, còn `working` hiện các thay đổi đã
+stage, chưa stage và chưa được theo dõi. `turn` hiện **Lượt cuối**, tức các tệp mà phiên đã thay đổi trong lượt gần nhất của nó; nó
+làm mới khi phiên kết thúc một lượt và quay về `branch` khi `/diff` không được mở từ một phiên.
+
+Trong `/diff`, nhấn `d` để đổi phạm vi hoặc chọn một nhánh so sánh từ **Gốc**. Những lựa chọn này trong chế độ xem kéo dài tới khi
+TUI thoát ra và không thay đổi `cli.json`.
+
+## Cảnh báo
+
+Bật thông báo hệ thống và âm thanh báo hiệu riêng biệt:
+
+```json title="cli.json"
+{
+  "attention": {
+    "notifications": true,
+    "sound": true,
+    "volume": 0.4,
+    "sound_pack": "opencode.default",
+    "sounds": {
+      "permission": "/home/me/sounds/permission.wav"
+    }
+  }
+}
+```
+
+<div class="docs-table-scroll" role="region" aria-label="Cài đặt cảnh báo" tabIndex={0}>
+
+| Cài đặt                   | Giá trị                | Mô tả                                                                                              |
+| ------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------- |
+| `attention.notifications` | boolean                | Hiện thông báo hệ thống, thường là khi terminal không được tập trung.                              |
+| `attention.sound`         | boolean                | Phát âm thanh báo hiệu.                                                                            |
+| `attention.volume`        | number from `0` to `1` | Đặt âm lượng.                                                                                      |
+| `attention.sound_pack`    | string                 | Chọn ID của bộ âm thanh đang hoạt động.                                                            |
+| `attention.sounds`        | object                 | Ghi đè tệp âm thanh cho `default`, `question`, `permission`, `error`, `done` hoặc `subagent_done`. |
+
+</div>
+
+Một ghi đè không hợp lệ hoặc không đọc được sẽ dùng lại âm thanh tích hợp sẵn cho sự kiện đó.
+
+Sau một bản cập nhật, TUI hiện các điểm nổi bật của bản phát hành mới một lần trên màn hình chính. Chạy `/highlights` để xem lại,
+hoặc tắt hộp thoại này:
+
+```json title="cli.json"
+{
+  "highlights": false
+}
+```
+
+## Terminal
+
+Cấu hình tích hợp terminal:
+
+```json title="cli.json"
+{
+  "terminal": {
+    "title": true,
+    "copy": "select"
+  }
+}
+```
+
+<div class="docs-table-scroll" role="region" aria-label="Cài đặt terminal" tabIndex={0}>
+
+| Cài đặt          | Giá trị              | Mô tả                                                                                                            |
+| ---------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `terminal.title` | boolean              | Cập nhật tiêu đề cửa sổ terminal.                                                                                |
+| `terminal.copy`  | `manual` or `select` | Sao chép thủ công hoặc ngay sau khi chọn. Mặc định của nền tảng là `manual` trên Windows và `select` ở nơi khác. |
+
+</div>
+
+## Mini
+
+Nhóm `mini` điều khiển [`opencode mini`](/cli#mini), giao diện tương tác tối giản:
+
+```json title="cli.json"
+{
+  "mini": {
+    "thinking": "show",
+    "tools": "hide",
+    "shell_output": "hide",
+    "turn_summary": "show",
+    "footer": "show",
+    "splash": "show",
+    "work_spinner": "block-soft-slide",
+    "mono": false,
+    "replay": true,
+    "replay_limit": 200
+  }
+}
+```
+
+<div class="docs-table-scroll" role="region" aria-label="Cài đặt Mini" tabIndex={0}>
+
+| Cài đặt             | Giá trị          | Mô tả                                                                            |
+| ------------------- | ---------------- | -------------------------------------------------------------------------------- |
+| `mini.thinking`     | `show` or `hide` | Hiện hoặc ẩn suy luận của mô hình.                                               |
+| `mini.tools`        | `show` or `hide` | Hiện hoặc ẩn các lệnh gọi công cụ cùng phần văn bản của trợ lý đứng trước chúng. |
+| `mini.shell_output` | `show` or `hide` | Hiện hoặc ẩn kết quả thô của công cụ shell.                                      |
+| `mini.turn_summary` | `show` or `hide` | Hiện hoặc ẩn phần tóm tắt tác nhân, mô hình và thời gian trong lịch sử cuộn.     |
+| `mini.footer`       | `show` or `hide` | Hiện hoặc ẩn các thông tin hoạt động, mô hình, mức sử dụng và ngữ cảnh cố định.  |
+| `mini.splash`       | `show` or `hide` | Hiện hoặc ẩn biểu ngữ splash khi vào và khi thoát.                               |
+| `mini.work_spinner` | spinner ID       | Chọn hiệu ứng chuyển động trong chân trang.                                      |
+| `mini.mono`         | boolean          | Dùng kết quả ASCII đơn sắc.                                                      |
+| `mini.replay`       | boolean          | Khôi phục lịch sử phiên khi tiếp tục và khi terminal đổi kích thước.             |
+| `mini.replay_limit` | positive integer | Giới hạn phát lại ở các tin nhắn mới nhất. Giới hạn mặc định là `200`.           |
+
+</div>
+
+Các ID spinner khả dụng là:
+
+```text
+block-soft-slide  block-soft-sweep  block-low-comet  block-low-duet
+block-shuttle     block-bridge      block-squeeze    small-toggle
+square-toggle     grow-shrink       quadrant-orbit   crosshatch
+density-wave      seed
+```
+
+Các tùy chọn `mini` phát lại trên dòng lệnh sẽ ghi đè những cài đặt này cho lần chạy đó.
+
+## Phím tắt
+
+Ghi đè một ràng buộc lệnh và thời gian chờ của phím leader:
+
+```json title="cli.json"
+{
+  "keybinds": {
+    "leader": "ctrl+x",
+    "app.exit": ["ctrl+c", "ctrl+d", "<leader>q"],
+    "prompt.paste": {
+      "key": "ctrl+v",
+      "event": "press",
+      "preventDefault": false,
+      "fallthrough": false
+    },
+    "help.show": false
+  },
+  "leader": {
+    "timeout": 2000
+  }
+}
+```
+
+<div class="docs-table-scroll" role="region" aria-label="Cài đặt phím tắt" tabIndex={0}>
+
+| Cài đặt                     | Giá trị                  | Mô tả                                                                 |
+| --------------------------- | ------------------------ | --------------------------------------------------------------------- |
+| `keybinds.leader`           | binding value            | Đặt phím được `<leader>` tham chiếu tới trong các ràng buộc khác.     |
+| `keybinds.<command>`        | binding value            | Ghi đè ràng buộc cho một ID lệnh.                                     |
+| `keybinds.*.key`            | key string or descriptor | Chọn phím cho một ràng buộc dạng đối tượng.                           |
+| `keybinds.*.event`          | `press` or `release`     | Giới hạn một ràng buộc dạng đối tượng ở một sự kiện phím.             |
+| `keybinds.*.preventDefault` | boolean                  | Điều khiển việc có chặn hành vi phím mặc định của terminal hay không. |
+| `keybinds.*.fallthrough`    | boolean                  | Cho phép các trình xử lý ưu tiên thấp hơn nhận cùng sự kiện đó.       |
+| `leader.timeout`            | positive integer         | Đặt số mili giây cần chờ sau khi nhấn phím leader.                    |
+
+</div>
+
+Một giá trị ràng buộc có thể là chuỗi, một mảng các phương án, hoặc một đối tượng. Dùng `"none"` hoặc `false` để tắt một ràng buộc.
+Xem [Phím tắt](/cli/keybinds) để biết cú pháp phím được chấp nhận, mọi ID lệnh và mọi ràng buộc mặc định.
+
+## Tiện ích mở rộng
+
+Nạp các tiện ích mở rộng chỉ dành cho terminal theo thứ tự:
+
+```json title="cli.json"
+{
+  "plugins": [
+    "-opencode.notifications",
+    {
+      "package": "./plugins/status",
+      "options": {
+        "compact": true
+      }
+    }
+  ]
+}
+```
+
+<div class="docs-table-scroll" role="region" aria-label="Cài đặt tiện ích mở rộng" tabIndex={0}>
+
+| Cài đặt             | Giá trị | Mô tả                                                             |
+| ------------------- | ------- | ----------------------------------------------------------------- |
+| `plugins`           | array   | Khai báo các chỉ thị bật có thứ tự và tiện ích mở rộng bên ngoài. |
+| `plugins[].package` | string  | Đặt tên gói, đường dẫn cục bộ hoặc URL tệp.                       |
+| `plugins[].options` | object  | Truyền các tùy chọn riêng của tiện ích mở rộng cho tiện ích đó.   |
+
+</div>
+
+Xem [Tiện ích mở rộng](/cli/plugins) để biết các dạng gói, khám phá cục bộ, ký tự đại diện và chỉ thị tắt.
+
+## Debug và thử nghiệm
+
+Bật chẩn đoán hoặc chọn tham gia một thử nghiệm hiện đang có:
+
+```json title="cli.json"
+{
+  "debug": {
+    "devtools": false,
+    "timing": false,
+    "turn_tokens": "verbose"
+  },
+  "experimental": {}
+}
+```
+
+<div class="docs-table-scroll" role="region" aria-label="Cài đặt debug và thử nghiệm" tabIndex={0}>
+
+| Cài đặt             | Giá trị                           | Mô tả                                                                                          |
+| ------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `debug.devtools`    | boolean                           | Hiện thanh debug DevTools.                                                                     |
+| `debug.timing`      | boolean                           | Hiện chẩn đoán thời gian tới lần vẽ đầu tiên trong thanh debug.                                |
+| `debug.turn_tokens` | boolean or `verbose`              | Hiện mức sử dụng token theo từng lượt; `verbose` còn bao gồm đầu vào của các lệnh gọi công cụ. |
+| `experimental`      | object of feature IDs to booleans | Bật hoặc tắt các thử nghiệm có thể thay đổi hoặc bị gỡ bỏ mà không cần báo trước.              |
+
+</div>
+
+Chỉ dùng những ID tính năng hiện đang được liệt kê trong hộp thoại **Experiments** của TUI. ID không hợp lệ không có tác dụng.

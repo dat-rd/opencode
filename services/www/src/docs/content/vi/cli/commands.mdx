@@ -1,0 +1,584 @@
+---
+title: "Lệnh"
+description: "Tra cứu dòng lệnh opencode."
+---
+
+Mọi lệnh đều chấp nhận `--help` để xem danh sách tùy chọn đầy đủ, ví dụ `opencode run --help`. Một số lệnh dựa trên server chấp nhận `--standalone` để chạy một server riêng hoặc `--server <url>` để nhắm tới một server cụ thể; hãy xem trang trợ giúp của lệnh để biết các tùy chọn được hỗ trợ.
+
+## run
+
+Gửi một tin nhắn và in câu trả lời mà không mở giao diện tương tác.
+
+```bash
+$ opencode run "Explain this repository"
+```
+
+### CI
+
+Trong CI, hãy truyền API key của nhà cung cấp dưới dạng secret và dùng chế độ standalone để server riêng nhận được nó. Ví dụ, job GitHub Actions sau đánh giá kho đã được checkout:
+
+```yaml
+name: OpenCode review
+on: [pull_request]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install --global @opencode/cli
+      - run: opencode run --standalone --model anthropic/claude-sonnet-4-5 "Review this repository for correctness and summarize any issues."
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+Chọn một mô hình.
+
+```bash
+$ opencode run --model anthropic/claude-sonnet-4-5 "Refactor parseToken"
+```
+
+Tiếp tục phiên gần nhất.
+
+```bash
+$ opencode run --continue "Now handle the expired case"
+```
+
+Xuất JSON phân tách theo dòng cho script.
+
+```bash
+$ opencode run --format json "List the TODO comments"
+```
+
+Đính kèm tệp vào tin nhắn.
+
+```bash
+$ opencode run --file src/server.ts --file src/client.ts "Review these for bugs"
+```
+
+Chạy với một tác nhân cụ thể.
+
+```bash
+$ opencode run --agent build "Fix the failing test"
+```
+
+Xem tất cả lệnh con và tùy chọn.
+
+```bash
+$ opencode run --help
+```
+
+## mini
+
+Khởi động giao diện tương tác tối giản thay vì TUI toàn màn hình.
+
+```bash
+$ opencode mini
+```
+
+Tiếp tục phiên gần nhất.
+
+```bash
+$ opencode mini --continue
+```
+
+Bắt đầu với một mô hình và một lời nhắc ban đầu.
+
+```bash
+$ opencode mini --model anthropic/claude-sonnet-4-5 --prompt "Summarize this repository"
+```
+
+Xem tất cả lệnh con và tùy chọn.
+
+```bash
+$ opencode mini --help
+```
+
+## phiên
+
+Quản lý các phiên.
+
+```bash
+$ opencode session list
+```
+
+Giới hạn danh sách và in ra JSON.
+
+```bash
+$ opencode session list --max-count 20 --format json
+```
+
+Xóa một phiên và các phiên con của nó.
+
+```bash
+$ opencode session delete ses_9c1b08
+```
+
+Xuất dữ liệu phiên ra JSON.
+
+```bash
+$ opencode session export ses_4f2a1c
+```
+
+Ẩn dữ liệu nhạy cảm trong bản ghi hội thoại và tệp khi xuất.
+
+```bash
+$ opencode session export ses_4f2a1c --sanitize
+```
+
+Nhập dữ liệu phiên từ một tệp hoặc URL JSON.
+
+```bash
+$ opencode session import session.json
+```
+
+Nhập vào một thư mục cụ thể.
+
+```bash
+$ opencode session import session.json --directory ~/code/project
+```
+
+Xem tất cả lệnh con và tùy chọn.
+
+```bash
+$ opencode session --help
+```
+
+## auth
+
+Quản lý các nhà cung cấp AI và thông tin đăng nhập.
+
+```bash
+$ opencode auth list
+```
+
+Liệt kê dưới dạng JSON.
+
+```bash
+$ opencode auth list --format json
+```
+
+Đăng nhập vào một nhà cung cấp.
+
+```bash
+$ opencode auth login anthropic
+```
+
+Đăng nhập bằng một phương thức xác thực cụ thể.
+
+```bash
+$ opencode auth login anthropic --method key
+```
+
+Đăng xuất khỏi một tài khoản đã lưu.
+
+```bash
+$ opencode auth logout anthropic work
+```
+
+Chuyển tài khoản đang hoạt động cho một tích hợp.
+
+```bash
+$ opencode auth switch anthropic work
+```
+
+Xem tất cả lệnh con và tùy chọn.
+
+```bash
+$ opencode auth --help
+```
+
+## mô hình
+
+Liệt kê mọi mô hình khả dụng.
+
+```bash
+$ opencode models
+```
+
+Xem tất cả lệnh con và tùy chọn.
+
+```bash
+$ opencode models --help
+```
+
+## mcp
+
+Quản lý các MCP server (Model Context Protocol).
+
+```bash
+$ opencode mcp list
+```
+
+Thêm một server từ xa.
+
+```bash
+$ opencode mcp add context7 --url https://mcp.context7.com/mcp
+```
+
+Thêm một server cục bộ vào cấu hình toàn cục.
+
+```bash
+$ opencode mcp add everything --global -- npx -y @modelcontextprotocol/server-everything
+```
+
+Thêm một server cục bộ với biến môi trường.
+
+```bash
+$ opencode mcp add everything --env LOG_LEVEL=debug -- npx -y @modelcontextprotocol/server-everything
+```
+
+Thêm một server từ xa kèm một header.
+
+```bash
+$ opencode mcp add context7 --url https://mcp.context7.com/mcp --header CONTEXT7_API_KEY=secret
+```
+
+Xác thực với một server từ xa hỗ trợ OAuth.
+
+```bash
+$ opencode mcp auth sentry
+```
+
+Xóa thông tin OAuth đã lưu của một server.
+
+```bash
+$ opencode mcp logout sentry
+```
+
+Xem tất cả lệnh con và tùy chọn.
+
+```bash
+$ opencode mcp --help
+```
+
+## tiện ích mở rộng
+
+Quản lý các tiện ích mở rộng.
+
+```bash
+$ opencode plugin list
+```
+
+Bao gồm cả các tiện ích mở rộng server tích hợp sẵn.
+
+```bash
+$ opencode plugin list --builtin
+```
+
+Cài đặt một tiện ích mở rộng và thêm nó vào cấu hình toàn cục.
+
+```bash
+$ opencode plugin add @example/opencode-tui
+```
+
+Kiểm tra cập nhật cho các tiện ích mở rộng dạng gói.
+
+```bash
+$ opencode plugin check
+```
+
+Cập nhật các tiện ích mở rộng dạng gói.
+
+```bash
+$ opencode plugin update
+```
+
+Gỡ một tiện ích mở rộng khỏi cấu hình toàn cục.
+
+```bash
+$ opencode plugin remove @example/opencode-tui
+```
+
+Xem tất cả lệnh con và tùy chọn.
+
+```bash
+$ opencode plugin --help
+```
+
+## stats
+
+Hiện số liệu sử dụng có thể chia sẻ.
+
+```bash
+$ opencode stats
+```
+
+Hiện 7 ngày gần nhất.
+
+```bash
+$ opencode stats --days 7
+```
+
+Hiện mức sử dụng mô hình.
+
+```bash
+$ opencode stats --models
+```
+
+Hiện chi tiết chi phí và token.
+
+```bash
+$ opencode stats --cost
+```
+
+In ra JSON thay vì báo cáo.
+
+```bash
+$ opencode stats --json
+```
+
+Xem tất cả lệnh con và tùy chọn.
+
+```bash
+$ opencode stats --help
+```
+
+## serve
+
+Khởi động API và web server. Xem [Web](/cli/web).
+
+```bash
+$ opencode serve
+```
+
+Liên kết với mọi giao diện trên một cổng cố định.
+
+```bash
+$ opencode serve --hostname 0.0.0.0 --port 4096
+```
+
+Cho phép một client trình duyệt đến từ một origin khác.
+
+```bash
+$ opencode serve --cors https://app.example.com
+```
+
+Xem tất cả lệnh con và tùy chọn.
+
+```bash
+$ opencode serve --help
+```
+
+## pair
+
+In ra các liên kết dùng một lần, cùng một mã QR của liên kết đầu tiên, để đăng nhập một trình duyệt hoặc
+app vào server. Liên kết hết hạn sau 5 phút và chỉ dùng được một lần.
+
+```bash
+$ opencode pair
+```
+
+Dùng một URL bên ngoài trong các liên kết.
+
+```bash
+$ opencode pair --url https://dev.example.com
+```
+
+Ghép nối từ mọi nơi thông qua một địa chỉ từ xa của OpenTunnel. Điều này phơi bày
+server ra internet, nên lần đầu bật truy cập từ xa nó sẽ giải thích điều này và hỏi bạn có chấp nhận hay không.
+Xem [Truy cập từ xa](/cli/web#remote-access).
+
+```bash
+$ opencode pair --remote
+```
+
+Chấp nhận mà không cần hỏi, ví dụ trong một script không có terminal.
+
+```bash
+$ opencode pair --remote --yes
+```
+
+Xem tất cả lệnh con và tùy chọn.
+
+```bash
+$ opencode pair --help
+```
+
+## service
+
+Quản lý server nền. Xem [Web](/cli/web).
+
+```bash
+$ opencode service start
+```
+
+Khởi động lại nó.
+
+```bash
+$ opencode service restart
+```
+
+Hiện trạng thái của nó.
+
+```bash
+$ opencode service status
+```
+
+Dừng nó.
+
+```bash
+$ opencode service stop
+```
+
+Đọc một cài đặt.
+
+```bash
+$ opencode service get hostname
+```
+
+Đặt một cài đặt.
+
+```bash
+$ opencode service set hostname 0.0.0.0
+```
+
+Cho phép thêm một origin CORS.
+
+```bash
+$ opencode service set cors https://app.example.com
+```
+
+Truyền một biến môi trường cho tiến trình server.
+
+```bash
+$ opencode service set env OPENCODE_LOG_LEVEL DEBUG
+```
+
+Đặt lại một cài đặt về mặc định.
+
+```bash
+$ opencode service unset hostname
+```
+
+Xem tất cả lệnh con và tùy chọn.
+
+```bash
+$ opencode service --help
+```
+
+## reload
+
+Nạp lại cấu hình mà không khởi động lại server. Các phiên đang chạy tiếp tục với dịch vụ mới ở bước kế tiếp.
+
+```bash
+$ opencode reload
+```
+
+## api
+
+Gửi một yêu cầu tới server đang chạy.
+
+```bash
+$ opencode api GET /api/session
+```
+
+Gọi một ID thao tác với một tham số truy vấn.
+
+```bash
+$ opencode api session.list --param limit=10
+```
+
+Gửi một body JSON.
+
+```bash
+$ opencode api session.create --data '{"title": "New session"}'
+```
+
+Thêm một header cho yêu cầu.
+
+```bash
+$ opencode api GET /api/session -H "accept: application/json"
+```
+
+Xem tất cả lệnh con và tùy chọn.
+
+```bash
+$ opencode api --help
+```
+
+## acp
+
+Khởi động một Agent Client Protocol server qua stdin và stdout cho các tích hợp trình soạn thảo. Nó chạy cho tới khi client đóng kết nối.
+
+```bash
+$ opencode acp
+```
+
+Xem tất cả lệnh con và tùy chọn.
+
+```bash
+$ opencode acp --help
+```
+
+## debug
+
+Cung cấp các công cụ debug và khắc phục sự cố.
+
+```bash
+$ opencode debug agents
+```
+
+Liệt kê các nguồn cấu hình.
+
+```bash
+$ opencode debug config
+```
+
+Hiện các đường dẫn toàn cục.
+
+```bash
+$ opencode debug paths
+```
+
+In một đường dẫn đơn lẻ.
+
+```bash
+$ opencode debug paths db
+```
+
+Xem tất cả lệnh con và tùy chọn.
+
+```bash
+$ opencode debug --help
+```
+
+## upgrade
+
+Nâng cấp OpenCode lên bản mới nhất hoặc một phiên bản cụ thể. Tên viết tắt: `update`.
+
+```bash
+$ opencode upgrade
+```
+
+Nâng cấp lên một phiên bản cụ thể bằng một trình quản lý gói cụ thể.
+
+```bash
+$ opencode upgrade 2.0.21 --method bun
+```
+
+Xem tất cả lệnh con và tùy chọn.
+
+```bash
+$ opencode upgrade --help
+```
+
+## uninstall
+
+Gỡ bỏ OpenCode và mọi tệp liên quan.
+
+```bash
+$ opencode uninstall
+```
+
+Xem trước những gì sẽ bị gỡ bỏ.
+
+```bash
+$ opencode uninstall --dry-run
+```
+
+Xem tất cả lệnh con và tùy chọn.
+
+```bash
+$ opencode uninstall --help
+```
